@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function AccountDrawer({ isOpen, onClose }: Props) {
-  const { user, login, logout } = useAuth();
+  const { user, login, logout, registerUser } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<"login" | "register">("login");
   const [loginEmail, setLoginEmail] = useState("");
@@ -36,7 +36,7 @@ export default function AccountDrawer({ isOpen, onClose }: Props) {
     }
   }
 
-  function handleRegister(e: React.FormEvent) {
+  async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setRegError("");
     if (regPassword !== regPassword2) {
@@ -47,11 +47,19 @@ export default function AccountDrawer({ isOpen, onClose }: Props) {
       setRegError("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
-    setRegSuccess(true);
-    setTimeout(() => {
-      setRegSuccess(false);
-      setTab("login");
-    }, 2000);
+
+    const nombreCompleto = `${regNombre} ${regApellido}`.trim();
+    const res = await registerUser(regEmail, regPassword, nombreCompleto);
+
+    if (res.success) {
+      setRegSuccess(true);
+      setTimeout(() => {
+        setRegSuccess(false);
+        setTab("login");
+      }, 2000);
+    } else {
+      setRegError(res.error || "Ocurrió un error al registrar la cuenta.");
+    }
   }
 
   const inputStyle = {
