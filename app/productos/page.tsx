@@ -10,6 +10,7 @@ interface Producto {
   sku: string;
   precio: number;
   icono: string;
+  imagen_url: string | null;
   badge: string | null;
   stock: number;
   categoria_id: number;
@@ -40,7 +41,6 @@ export default function Productos() {
   const [busqueda, setBusqueda] = useState("");
   const [orden, setOrden] = useState("default");
 
-  // Leer término de búsqueda desde URL al montar
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -68,7 +68,6 @@ export default function Productos() {
     fetchProductos();
   }, []);
 
-  // Filtrar y ordenar
   const productosFiltrados = productos
     .filter((p) => {
       const coincideCategoria = categoriaActiva === 0 || p.categoria_id === categoriaActiva;
@@ -105,7 +104,6 @@ export default function Productos() {
       {/* BARRA DE BÚSQUEDA Y ORDEN */}
       <section className="bg-white border-b border-black/8 py-4 px-6 sticky top-16 z-40">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 items-stretch md:items-center">
-          {/* Buscador */}
           <div className="flex-1 flex bg-[#F0F7FD] border border-[#D6EAF8] rounded-full overflow-hidden focus-within:border-[#1B87C8] transition-colors">
             <input
               type="text"
@@ -119,9 +117,7 @@ export default function Productos() {
             </span>
           </div>
 
-          {/* Controles de ordenamiento y contador agrupados */}
           <div className="flex items-center justify-between gap-4 w-full md:w-auto">
-            {/* Ordenamiento */}
             <select
               value={orden}
               onChange={(e) => setOrden(e.target.value)}
@@ -132,7 +128,6 @@ export default function Productos() {
               ))}
             </select>
 
-            {/* Contador */}
             <span className="text-sm text-[#555] flex-shrink-0">
               <strong>{productosFiltrados.length}</strong> productos
             </span>
@@ -163,7 +158,6 @@ export default function Productos() {
       <section className="py-12 px-6">
         <div className="max-w-6xl mx-auto">
 
-          {/* LOADING */}
           {loading && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
@@ -172,7 +166,6 @@ export default function Productos() {
             </div>
           )}
 
-          {/* SIN RESULTADOS */}
           {!loading && productosFiltrados.length === 0 && (
             <div className="text-center py-24 text-gray-400">
               <div className="text-6xl mb-4">🔍</div>
@@ -187,7 +180,6 @@ export default function Productos() {
             </div>
           )}
 
-          {/* PRODUCTOS */}
           {!loading && productosFiltrados.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               {productosFiltrados.map((p) => (
@@ -202,8 +194,12 @@ export default function Productos() {
                       {p.badge}
                     </span>
                   )}
-                  <div className="h-44 bg-[#F0F7FD] flex items-center justify-center text-6xl">
-                    {p.icono}
+                  <div className="h-44 bg-[#F0F7FD] flex items-center justify-center overflow-hidden">
+                    {p.imagen_url ? (
+                      <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-6xl">{p.icono}</span>
+                    )}
                   </div>
                   <div className="p-4">
                     <div className="text-xs font-semibold text-[#1B87C8] uppercase tracking-wide mb-1">{p.marca}</div>
