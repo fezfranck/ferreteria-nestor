@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function CartDrawer({ isOpen, onClose }: Props) {
-  const { items, removeItem, total, count, clearCart } = useCart();
+  const { items, addItem, removeItem, decrementItem, total, count, clearCart } = useCart();
   const { user } = useAuth();
 
   // Estados de checkout
@@ -266,15 +266,34 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                       ${(item.price * item.quantity).toLocaleString("es-AR")}
                     </div>
                   </div>
-                  <div className="flex flex-col items-center gap-2 flex-shrink-0">
-                    <span className="bg-[#1B87C8] text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
-                      {item.quantity}
-                    </span>
+                  {/* Controles de cantidad responsivos e interactivos */}
+                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                    <div className="flex items-center bg-white border border-black/10 rounded-full overflow-hidden shadow-sm">
+                      <button
+                        onClick={() => decrementItem(item.id)}
+                        className="px-2 py-1 text-xs font-black text-gray-500 hover:bg-[#F0F7FD] hover:text-[#1B87C8] transition-colors"
+                        type="button"
+                      >
+                        -
+                      </button>
+                      <span className="px-1 text-xs font-bold text-gray-800 min-w-[20px] text-center">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => addItem({ id: item.id, name: item.name, price: item.price, brand: item.brand, icon: item.icon })}
+                        className="px-2 py-1 text-xs font-black text-gray-500 hover:bg-[#F0F7FD] hover:text-[#1B87C8] transition-colors"
+                        type="button"
+                      >
+                        +
+                      </button>
+                    </div>
                     <button
                       onClick={() => removeItem(item.id)}
-                      className="text-red-400 hover:text-red-600 text-xs transition-colors p-1"
+                      className="text-red-400 hover:text-red-600 text-xs transition-colors p-1 flex items-center gap-1"
+                      title="Eliminar producto"
+                      type="button"
                     >
-                      🗑️
+                      <span>Eliminar</span> 🗑️
                     </button>
                   </div>
                 </div>

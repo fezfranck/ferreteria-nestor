@@ -52,8 +52,8 @@ export default function Home() {
             ✦ Desde 1967 en el sector
           </div>
           <h1
-            className="font-black uppercase leading-none mb-5"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "80px", letterSpacing: "-1px" }}
+            className="font-black uppercase leading-none mb-5 text-4xl sm:text-6xl md:text-7xl lg:text-8xl"
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "-1px" }}
           >
             TODO PARA<br />TU <span style={{ color: "#F5A623" }}>OBRA Y HOGAR</span>
           </h1>
@@ -76,7 +76,7 @@ export default function Home() {
           </div>
 
           {/* Stats */}
-          <div className="flex gap-10 mt-12">
+          <div className="flex gap-6 sm:gap-10 mt-12 flex-wrap">
             {[
               { num: "15K+", label: "Productos" },
               { num: "200+", label: "Marcas" },
@@ -206,20 +206,20 @@ export default function Home() {
       <section className="px-6 pb-16">
         <div className="max-w-6xl mx-auto">
           <div
-            className="rounded-xl p-10 flex items-center justify-between overflow-hidden relative"
+            className="rounded-xl p-6 sm:p-10 flex flex-col md:flex-row items-start md:items-center justify-between overflow-hidden relative gap-6"
             style={{ background: "#1A1A1A" }}
           >
             <div
               className="absolute inset-0 opacity-10"
               style={{ background: "linear-gradient(135deg, #1B87C8 0%, transparent 60%)" }}
-            />
+            ></div>
             <div className="relative z-10">
               <div className="text-xs font-bold uppercase tracking-widest mb-3 px-3 py-1 rounded inline-block bg-accent/15 text-accent">
                 OFERTA ESPECIAL
               </div>
               <h2
-                className="font-black uppercase text-white leading-none mb-3"
-                style={{ fontSize: "56px" }}
+                className="font-black uppercase text-white leading-none mb-3 text-3xl sm:text-5xl md:text-6xl"
+                style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
               >
                 HASTA <span className="text-accent">30%</span><br />DE DESCUENTO
               </h2>
