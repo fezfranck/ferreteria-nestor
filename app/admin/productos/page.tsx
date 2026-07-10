@@ -10,6 +10,7 @@ interface Producto {
   precio: number;
   stock: number;
   icono: string;
+  imagen_url: string | null;
   badge: string | null;
   activo: boolean;
   categoria_id: number;
@@ -28,7 +29,8 @@ const ICONOS = ["⚡", "🔌", "📦", "💡", "🔧", "🪛", "🔨", "🪚", "
 
 const vacío = {
   nombre: "", marca: "", sku: "", precio: 0,
-  stock: 0, icono: "📦", badge: "", activo: true, categoria_id: 1,
+  stock: 0, icono: "📦", imagen_url: null as string | null,
+  badge: "", activo: true, categoria_id: 1,
 };
 
 export default function AdminProductos() {
@@ -41,6 +43,10 @@ export default function AdminProductos() {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState("");
 
+  // Nuevo: archivo de imagen seleccionado y estado de subida
+  const [archivoImagen, setArchivoImagen] = useState<File | null>(null);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+
   useEffect(() => { fetchProductos(); }, []);
 
   async function fetchProductos() {
@@ -52,6 +58,7 @@ export default function AdminProductos() {
   function abrirNuevo() {
     setEditando(null);
     setForm(vacío);
+    setArchivoImagen(null);
     setModalOpen(true);
   }
 
@@ -60,25 +67,64 @@ export default function AdminProductos() {
     setForm({
       nombre: p.nombre, marca: p.marca, sku: p.sku,
       precio: p.precio, stock: p.stock, icono: p.icono,
+      imagen_url: p.imagen_url,
       badge: p.badge || "", activo: p.activo, categoria_id: p.categoria_id,
     });
+    setArchivoImagen(null);
     setModalOpen(true);
+  }
+
+  // Sube el archivo seleccionado a Supabase Storage y devuelve la URL pública.
+  // Si no hay archivo nuevo, devuelve la URL que ya tenía el producto (o null).
+  async function subirImagen(sku: string): Promise<string | null> {
+    if (!archivoImagen) return form.imagen_url;
+
+    setSubiendoImagen(true);
+    const extension = archivoImagen.name.split(".").pop();
+    const nombreArchivo = `${sku || "producto"}-${Date.now()}.${extension}`;
+
+    const { error } = await supabase.storage
+      .from("productos")
+      .upload(nombreArchivo, archivoImagen, { upsert: true });
+
+    setSubiendoImagen(false);
+
+    if (error) {
+      console.error("Error subiendo imagen:", error);
+      return null;
+    }
+
+    const { data } = supabase.storage.from("productos").getPublicUrl(nombreArchivo);
+    return data.publicUrl;
   }
 
   async function guardar() {
     setGuardando(true);
-    const datos = { ...form, badge: form.badge || null };
+
+    const urlImagen = await subirImagen(form.sku);
+    const datos = { ...form, badge: form.badge || null, imagen_url: urlImagen };
+
+    let error;
     if (editando) {
-      await supabase.from("productos").update(datos).eq("id", editando.id);
-      setMensaje("Producto actualizado correctamente");
+      const res = await supabase.from("productos").update(datos).eq("id", editando.id);
+      error = res.error;
     } else {
-      await supabase.from("productos").insert(datos);
-      setMensaje("Producto creado correctamente");
+      const res = await supabase.from("productos").insert(datos);
+      error = res.error;
     }
-    setModalOpen(false);
-    fetchProductos();
+
+    if (error) {
+      console.error("Error guardando producto:", error);
+      setMensaje("❌ Error: " + error.message);
+    } else {
+      setMensaje(editando ? "Producto actualizado correctamente" : "Producto creado correctamente");
+      setModalOpen(false);
+      setArchivoImagen(null);
+      fetchProductos();
+    }
+
     setGuardando(false);
-    setTimeout(() => setMensaje(""), 3000);
+    setTimeout(() => setMensaje(""), 4000);
   }
 
   async function toggleActivo(p: Producto) {
@@ -110,9 +156,13 @@ export default function AdminProductos() {
       {mensaje && (
         <div
           className="rounded-lg px-4 py-3 mb-4 text-sm font-medium"
-          style={{ background: "rgba(22,163,74,0.08)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.2)" }}
+          style={{
+            background: mensaje.startsWith("❌") ? "rgba(220,38,38,0.08)" : "rgba(22,163,74,0.08)",
+            color: mensaje.startsWith("❌") ? "#DC2626" : "#16A34A",
+            border: mensaje.startsWith("❌") ? "1px solid rgba(220,38,38,0.2)" : "1px solid rgba(22,163,74,0.2)",
+          }}
         >
-          ✅ {mensaje}
+          {mensaje.startsWith("❌") ? mensaje : `✅ ${mensaje}`}
         </div>
       )}
 
@@ -177,7 +227,11 @@ export default function AdminProductos() {
               <tr key={p.id} style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{p.icono}</span>
+                    {p.imagen_url ? (
+                      <img src={p.imagen_url} alt={p.nombre} className="w-9 h-9 object-cover rounded-lg" />
+                    ) : (
+                      <span className="text-2xl">{p.icono}</span>
+                    )}
                     <div>
                       <div className="font-semibold">{p.nombre}</div>
                       <div className="text-xs" style={{ color: "#aaa" }}>{p.marca}</div>
@@ -247,15 +301,63 @@ export default function AdminProductos() {
               <button onClick={() => setModalOpen(false)} style={{ color: "#aaa", fontSize: "20px" }}>✕</button>
             </div>
             <div className="p-6 flex flex-col gap-4">
-              {/* Icono selector */}
+
+              {/* Imagen del producto (reemplaza al selector de iconos) */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wide mb-2">Icono</label>
+                <label className="block text-xs font-bold uppercase tracking-wide mb-2">Imagen del producto</label>
+
+                <div className="flex items-center gap-4 mb-2">
+                  {archivoImagen ? (
+                    <img
+                      src={URL.createObjectURL(archivoImagen)}
+                      alt="Vista previa"
+                      className="w-20 h-20 object-cover rounded-lg"
+                      style={{ border: "1.5px solid rgba(0,0,0,0.1)" }}
+                    />
+                  ) : form.imagen_url ? (
+                    <img
+                      src={form.imagen_url}
+                      alt="Vista previa"
+                      className="w-20 h-20 object-cover rounded-lg"
+                      style={{ border: "1.5px solid rgba(0,0,0,0.1)" }}
+                    />
+                  ) : (
+                    <div
+                      className="w-20 h-20 rounded-lg flex items-center justify-center text-3xl"
+                      style={{ border: "1.5px solid rgba(0,0,0,0.1)", background: "#fafafa" }}
+                    >
+                      {form.icono}
+                    </div>
+                  )}
+
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => setArchivoImagen(e.target.files?.[0] || null)}
+                      className="text-sm"
+                    />
+                    {subiendoImagen && (
+                      <p className="text-xs mt-1" style={{ color: "#1B87C8" }}>Subiendo imagen...</p>
+                    )}
+                    {!form.imagen_url && !archivoImagen && (
+                      <p className="text-xs mt-1" style={{ color: "#aaa" }}>
+                        Sin imagen todavía — se usará el ícono como respaldo.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Selector de icono de respaldo, para productos sin foto */}
+                <label className="block text-xs font-bold uppercase tracking-wide mb-2 mt-3">
+                  Icono de respaldo
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {ICONOS.map(ic => (
                     <button
                       key={ic}
                       onClick={() => setForm(f => ({ ...f, icono: ic }))}
-                      className="w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all"
+                      className="w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all"
                       style={{
                         border: form.icono === ic ? "2px solid #1B87C8" : "1.5px solid rgba(0,0,0,0.1)",
                         background: form.icono === ic ? "#F0F7FD" : "white",
@@ -266,6 +368,7 @@ export default function AdminProductos() {
                   ))}
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wide mb-2">Nombre</label>
@@ -326,7 +429,7 @@ export default function AdminProductos() {
                 </button>
                 <button
                   onClick={guardar}
-                  disabled={guardando}
+                  disabled={guardando || subiendoImagen}
                   className="flex-1 py-3 rounded-lg font-bold text-sm transition-all"
                   style={{ background: "#1B87C8", color: "white" }}
                 >

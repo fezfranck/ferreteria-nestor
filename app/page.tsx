@@ -11,6 +11,7 @@ interface Producto {
   sku: string;
   precio: number;
   icono: string;
+  imagen_url: string | null;
   badge: string | null;
   stock: number;
 }
@@ -75,7 +76,6 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Stats */}
           <div className="flex gap-6 sm:gap-10 mt-12 flex-wrap">
             {[
               { num: "15K+", label: "Productos" },
@@ -178,8 +178,12 @@ export default function Home() {
                       {p.badge}
                     </span>
                   )}
-                  <div className="h-44 flex items-center justify-center text-6xl bg-light">
-                    {p.icono}
+                  <div className="h-44 flex items-center justify-center bg-light overflow-hidden">
+                    {p.imagen_url ? (
+                      <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-6xl">{p.icono}</span>
+                    )}
                   </div>
                   <div className="p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide mb-1 text-primary">{p.marca}</div>
