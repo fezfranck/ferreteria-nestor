@@ -16,10 +16,13 @@ export default function Navbar() {
   return (
     <>
       {/* TOPBAR */}
-      <div className="hidden md:block bg-[#1A1A1A] text-[#aaa] text-xs py-2 px-6 border-b border-[#333]">
+      <div className="bg-[#1A1A1A] text-[#aaa] text-xs py-2 px-4 sm:px-6 border-b border-[#333]">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <span>📍 Ignacio Crespo 1136, Recreo — Santa Fe</span>
-          <div className="flex gap-4">
+          <span className="hidden md:inline">📍 Ignacio Crespo 1136, Recreo — Santa Fe</span>
+          <a href="tel:+543425128458" className="md:hidden font-semibold text-white">
+            ☎️ (0342) 5128458
+          </a>
+          <div className="hidden md:flex gap-4">
             <span>☎️ (0342) 5128458</span>
             <span>🕐 Lun–Vie 8:00–18:00 | Sáb 8:00–13:00</span>
           </div>
@@ -28,18 +31,19 @@ export default function Navbar() {
 
       {/* NAVBAR */}
       <nav className="bg-white border-b border-black/8 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto px-6 flex items-center h-16 gap-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center h-16 gap-3 sm:gap-4">
 
           {/* Logo */}
           <Link
             href="/"
             className="font-black uppercase tracking-tight flex-shrink-0"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "22px" }}
+            style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "20px" }}
           >
-            ELECTRICIDAD <span style={{ color: "#1B87C8" }}>NESTOR</span>
+            <span className="hidden sm:inline">ELECTRICIDAD </span>
+            <span style={{ color: "#1B87C8" }}>NESTOR</span>
           </Link>
 
-          {/* Buscador (Oculto en móviles pequeños) */}
+          {/* Buscador (oculto en móviles pequeños) */}
           <div
             className="hidden sm:flex flex-1 rounded-full overflow-hidden transition-colors"
             style={{ background: "#F0F7FD", border: "1.5px solid #D6EAF8", maxWidth: "320px" }}
@@ -47,7 +51,7 @@ export default function Navbar() {
             <input
               type="text"
               placeholder="Buscar productos..."
-              className="bg-transparent flex-1 px-5 py-2 text-sm outline-none"
+              className="bg-transparent flex-1 px-5 py-2 text-sm outline-none min-w-0"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   const term = e.currentTarget.value;
@@ -56,7 +60,7 @@ export default function Navbar() {
               }}
             />
             <button
-              className="px-5 text-sm transition-colors"
+              className="px-5 text-sm transition-colors flex-shrink-0"
               style={{ background: "#1B87C8", color: "white" }}
               onClick={(e) => {
                 const input = e.currentTarget.previousElementSibling as HTMLInputElement;
@@ -64,6 +68,7 @@ export default function Navbar() {
                   window.location.href = `/productos?search=${encodeURIComponent(input.value)}`;
                 }
               }}
+              aria-label="Buscar"
             >
               🔍
             </button>
@@ -95,12 +100,13 @@ export default function Navbar() {
           {/* Botón cuenta */}
           <button
             onClick={() => setAccountOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all flex-shrink-0"
+            className="flex items-center gap-2 px-3 sm:px-4 h-11 rounded-full text-sm font-semibold transition-all flex-shrink-0"
             style={{
               background: user ? "#F0F7FD" : "transparent",
               border: "1.5px solid rgba(0,0,0,0.1)",
               color: user ? "#1B87C8" : "#555",
             }}
+            aria-label="Mi cuenta"
           >
             <span>{user ? "👤" : "🔐"}</span>
             <span className="hidden md:inline">
@@ -111,8 +117,9 @@ export default function Navbar() {
           {/* Carrito */}
           <button
             onClick={() => setCartOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all flex-shrink-0"
+            className="flex items-center gap-2 px-3 sm:px-4 h-11 rounded-full text-sm font-semibold transition-all flex-shrink-0"
             style={{ background: "#1B87C8", color: "white" }}
+            aria-label="Ver carrito"
           >
             🛒
             <span
@@ -126,8 +133,9 @@ export default function Navbar() {
           {/* Botón menú hamburguesa (Móvil) */}
           <button
             onClick={() => setMenuOpen(true)}
-            className="flex lg:hidden items-center justify-center p-2 rounded-full border border-black/10 hover:bg-gray-100 transition-colors flex-shrink-0 w-10 h-10 text-xl text-gray-700"
+            className="flex lg:hidden items-center justify-center rounded-full border border-black/10 hover:bg-gray-100 transition-colors flex-shrink-0 w-11 h-11 text-xl text-gray-700"
             type="button"
+            aria-label="Abrir menú"
           >
             ☰
           </button>
@@ -158,7 +166,8 @@ export default function Navbar() {
           </span>
           <button
             onClick={() => setMenuOpen(false)}
-            className="text-gray-400 hover:text-black text-2xl leading-none transition-colors"
+            className="text-gray-400 hover:text-black text-2xl leading-none transition-colors w-9 h-9 flex items-center justify-center"
+            aria-label="Cerrar menú"
           >
             ✕
           </button>
@@ -173,7 +182,7 @@ export default function Navbar() {
             <input
               type="text"
               placeholder="Buscar productos..."
-              className="bg-transparent flex-1 px-4 py-2 text-xs outline-none w-full"
+              className="bg-transparent flex-1 px-4 py-2.5 text-sm outline-none w-full min-w-0"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   window.location.href = `/productos?search=${encodeURIComponent(e.currentTarget.value)}`;
@@ -182,7 +191,7 @@ export default function Navbar() {
               }}
             />
             <button
-              className="px-4 text-xs text-white"
+              className="px-4 text-sm text-white flex-shrink-0"
               style={{ background: "#1B87C8" }}
               onClick={(e) => {
                 const input = e.currentTarget.previousElementSibling as HTMLInputElement;
@@ -191,6 +200,7 @@ export default function Navbar() {
                   setMenuOpen(false);
                 }
               }}
+              aria-label="Buscar"
             >
               🔍
             </button>
@@ -219,7 +229,7 @@ export default function Navbar() {
 
         {/* Footer del Drawer */}
         <div className="p-6 border-t border-black/8 bg-[#fdfdfd] text-xs text-gray-400 flex flex-col gap-2 flex-shrink-0">
-          <span>📞 (0342) 5128458</span>
+          <a href="tel:+543425128458">📞 (0342) 5128458</a>
           <span>📍 Ignacio Crespo 1136, Recreo</span>
         </div>
       </div>
