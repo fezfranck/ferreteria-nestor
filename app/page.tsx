@@ -21,6 +21,7 @@ export default function Home() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriaActiva, setCategoriaActiva] = useState("all");
+  const [descuento, setDescuento] = useState(30);
 
   useEffect(() => {
     async function fetchProductos() {
@@ -34,6 +35,18 @@ export default function Home() {
     }
     fetchProductos();
   }, []);
+
+  useEffect(() => {
+  async function fetchDescuento() {
+    const { data } = await supabase
+      .from("configuracion")
+      .select("descuento_porcentaje")
+      .eq("id", 1)
+      .single();
+    if (data) setDescuento(data.descuento_porcentaje);
+  }
+  fetchDescuento();
+}, []);
 
   return (
     <main>
@@ -225,7 +238,7 @@ export default function Home() {
                 className="font-black uppercase text-white leading-none mb-3 text-3xl sm:text-5xl md:text-6xl"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
               >
-                HASTA <span className="text-accent">30%</span><br />DE DESCUENTO
+                HASTA <span className="text-accent">{descuento}%</span><br />DE DESCUENTO
               </h2>
               <p className="text-white/60 text-sm mb-5">
                 En herramientas eléctricas seleccionadas. Válido hasta agotar stock.

@@ -21,13 +21,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!user) return null;
 
-  const navItems = [
-    { icon: "📊", label: "Dashboard", href: "/admin/dashboard", roles: ["superadmin", "admin", "vendedor", "comprador"] },
-    { icon: "📦", label: "Productos", href: "/admin/productos", roles: ["superadmin", "admin", "vendedor"] },
-    { icon: "🛒", label: "Pedidos", href: "/admin/pedidos", roles: ["superadmin", "admin", "vendedor"] },
-    { icon: "👥", label: "Usuarios", href: "/admin/usuarios", roles: ["superadmin"] },
-    { icon: "🔐", label: "Permisos", href: "/admin/permisos", roles: ["superadmin"] },
-  ].filter(item => item.roles.includes(user.rol));
+ const navItems = [
+  { icon: "📊", label: "Dashboard", href: "/admin/dashboard", roles: ["superadmin", "admin", "vendedor", "comprador"] },
+  { icon: "📦", label: "Productos", href: "/admin/productos", roles: ["superadmin", "admin", "vendedor"] },
+  { icon: "🛒", label: "Pedidos", href: "/admin/pedidos", roles: ["superadmin", "admin", "vendedor"] },
+  { icon: "👥", label: "Usuarios", href: "/admin/usuarios", roles: ["superadmin"] },
+  { icon: "🔐", label: "Permisos", href: "/admin/permisos", roles: ["superadmin"] },
+  { icon: "⚙️", label: "Configuración", href: "/admin/configuracion", roles: ["superadmin", "admin"] },  // ← nueva línea
+].filter(item => item.roles.includes(user.rol));
 
   const roleColors: Record<string, string> = {
     superadmin: "#805AD5",
