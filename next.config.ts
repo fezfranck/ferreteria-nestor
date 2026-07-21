@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
-              "connect-src 'self' https://api.mercadopago.com",
+              "connect-src 'self' https://api.mercadopago.com https://*.supabase.co wss://*.supabase.co",
               "frame-src https://www.mercadopago.com.ar",
             ].join("; "),
           },
