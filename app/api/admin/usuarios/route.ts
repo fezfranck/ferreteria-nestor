@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin, verificarSuperadmin } from "@/app/lib/supabaseAdmin";
+import { getSupabaseAdmin, verificarSuperadmin } from "../../../lib/supabaseAdmin";
 
 export async function GET(request: Request) {
   const admin = await verificarSuperadmin(request);

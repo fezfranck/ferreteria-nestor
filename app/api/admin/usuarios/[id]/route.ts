@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin, verificarSuperadmin } from "@/app/lib/supabaseAdmin";
+import { getSupabaseAdmin, verificarSuperadmin } from "../../../../lib/supabaseAdmin";
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const admin = await verificarSuperadmin(request);
