@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import CartDrawer from "./CartDrawer";
@@ -12,6 +13,7 @@ export default function Navbar() {
   const [cartOpen, setCartOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [busquedaMobileOpen, setBusquedaMobileOpen] = useState(false);
 
   return (
     <>
@@ -34,16 +36,18 @@ export default function Navbar() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center h-16 gap-3 sm:gap-4">
 
           {/* Logo */}
-          <Link
-            href="/"
-            className="font-black uppercase tracking-tight flex-shrink-0"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "20px" }}
-          >
-            <span className="hidden sm:inline">ELECTRICIDAD </span>
-            <span style={{ color: "#1B87C8" }}>NESTOR</span>
+          <Link href="/" className="flex-shrink-0 flex items-center" aria-label="Electricidad Nestor — Inicio">
+            <Image
+              src="/logo3d.png"
+              alt="Electricidad Nestor"
+              width={160}
+              height={40}
+              className="h-9 sm:h-10 w-auto object-contain"
+              priority
+            />
           </Link>
 
-          {/* Buscador (oculto en móviles pequeños) */}
+          {/* Buscador (oculto en móviles pequeños, visible desde sm) */}
           <div
             className="hidden sm:flex flex-1 rounded-full overflow-hidden transition-colors"
             style={{ background: "#F0F7FD", border: "1.5px solid #D6EAF8", maxWidth: "320px" }}
@@ -97,6 +101,16 @@ export default function Navbar() {
             ))}
           </div>
 
+          {/* Ícono de búsqueda — solo mobile, abre la barra desplegable */}
+          <button
+            onClick={() => setBusquedaMobileOpen(true)}
+            className="flex sm:hidden items-center justify-center rounded-full border border-black/10 hover:bg-gray-100 transition-colors flex-shrink-0 w-11 h-11 text-lg text-gray-700"
+            type="button"
+            aria-label="Buscar productos"
+          >
+            🔍
+          </button>
+
           {/* Botón cuenta */}
           <button
             onClick={() => setAccountOpen(true)}
@@ -143,7 +157,52 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* MOBILE DRAWER */}
+      {/* BARRA DE BÚSQUEDA MOBILE DESPLEGABLE */}
+      {busquedaMobileOpen && (
+        <div className="sm:hidden bg-white border-b border-black/8 px-4 py-3 sticky top-16 z-40 shadow-sm">
+          <div
+            className="flex rounded-full overflow-hidden"
+            style={{ background: "#F0F7FD", border: "1.5px solid #D6EAF8" }}
+          >
+            <input
+              type="text"
+              autoFocus
+              placeholder="Buscar productos..."
+              className="bg-transparent flex-1 px-4 py-2.5 text-sm outline-none min-w-0"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  window.location.href = `/productos?search=${encodeURIComponent(e.currentTarget.value)}`;
+                  setBusquedaMobileOpen(false);
+                }
+              }}
+            />
+            <button
+              className="px-4 text-sm text-white flex-shrink-0"
+              style={{ background: "#1B87C8" }}
+              onClick={(e) => {
+                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                if (input && input.value.trim()) {
+                  window.location.href = `/productos?search=${encodeURIComponent(input.value)}`;
+                  setBusquedaMobileOpen(false);
+                }
+              }}
+              aria-label="Buscar"
+            >
+              🔍
+            </button>
+            <button
+              className="px-4 text-sm flex-shrink-0"
+              style={{ color: "#aaa" }}
+              onClick={() => setBusquedaMobileOpen(false)}
+              aria-label="Cerrar búsqueda"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MOBILE DRAWER (menú hamburguesa) */}
       {menuOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity animate-fade-in"
@@ -158,12 +217,7 @@ export default function Navbar() {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-black/8 flex-shrink-0">
-          <span
-            className="font-black uppercase tracking-tight"
-            style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "20px" }}
-          >
-            ELECTRICIDAD <span style={{ color: "#1B87C8" }}>NESTOR</span>
-          </span>
+          <Image src="/logo3d.png" alt="Electricidad Nestor" width={140} height={35} className="h-8 w-auto object-contain" />
           <button
             onClick={() => setMenuOpen(false)}
             className="text-gray-400 hover:text-black text-2xl leading-none transition-colors w-9 h-9 flex items-center justify-center"
@@ -173,7 +227,7 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* Buscador móvil */}
+        {/* Buscador dentro del menú */}
         <div className="px-6 py-4 border-b border-black/8 flex-shrink-0">
           <div
             className="flex rounded-full overflow-hidden border border-[#D6EAF8]"
@@ -182,7 +236,7 @@ export default function Navbar() {
             <input
               type="text"
               placeholder="Buscar productos..."
-              className="bg-transparent flex-1 px-4 py-2.5 text-sm outline-none w-full min-w-0"
+              className="bg-transparent flex-1 px-4 py-2 text-xs outline-none w-full min-w-0"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   window.location.href = `/productos?search=${encodeURIComponent(e.currentTarget.value)}`;
@@ -191,7 +245,7 @@ export default function Navbar() {
               }}
             />
             <button
-              className="px-4 text-sm text-white flex-shrink-0"
+              className="px-4 text-xs text-white flex-shrink-0"
               style={{ background: "#1B87C8" }}
               onClick={(e) => {
                 const input = e.currentTarget.previousElementSibling as HTMLInputElement;
