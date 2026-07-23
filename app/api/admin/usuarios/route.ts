@@ -7,9 +7,9 @@ export async function GET(request: Request) {
 
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
-    .from("usuarios")
-    .select("id, nombre, email, rol, activo, created_at")
-    .order("created_at", { ascending: false });
+  .from("usuarios")
+  .select("id, nombre, email, rol, activo, creado")
+  .order("creado", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ usuarios: data });

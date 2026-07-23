@@ -9,7 +9,7 @@ interface Usuario {
   email: string;
   rol: "superadmin" | "admin" | "vendedor" | "comprador";
   activo: boolean;
-  created_at: string;
+  creado: string;
 }
 
 const ROLES = ["superadmin", "admin", "vendedor", "comprador"];
