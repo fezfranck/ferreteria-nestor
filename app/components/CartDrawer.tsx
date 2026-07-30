@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
+import AddressForm, { Direccion } from "./AddressForm";
 
 interface Props {
   isOpen: boolean;
@@ -17,7 +18,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const [comprando, setComprando] = useState(false);
   const [checkoutExitoso, setCheckoutExitoso] = useState(false);
   const [pedidoId, setPedidoId] = useState<number | null>(null);
-  
+
   // Formulario para invitado
   const [mostrarFormInvitado, setMostrarFormInvitado] = useState(false);
   const [invitadoNombre, setInvitadoNombre] = useState("");
@@ -25,13 +26,15 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const [invitadoTelefono, setInvitadoTelefono] = useState("");
   const [errorForm, setErrorForm] = useState("");
 
-  async function procesarCompra(nombre: string, email: string, telefono: string) {
-    console.log("Procesando pedido para:", nombre, email, telefono);
+  // Paso de dirección
+  const [mostrarFormDireccion, setMostrarFormDireccion] = useState(false);
+  const [direccion, setDireccion] = useState<Direccion | null>(null);
+
+  async function procesarCompra(nombre: string, email: string, telefono: string, direccionEnvio: Direccion) {
     setComprando(true);
     setErrorForm("");
 
     try {
-      // Registrar en Supabase
       const { data, error } = await supabase
         .from("pedidos")
         .insert([
@@ -47,6 +50,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
               quantity: item.quantity,
               icon: item.icon
             })),
+            direccion_envio: direccionEnvio,
             estado: "Pendiente",
             created_at: new Date().toISOString()
           }
@@ -57,7 +61,6 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
         console.error("Error creating order:", error);
         setErrorForm("No pudimos registrar tu compra. Intentalo de nuevo.");
       } else {
-        // Exito
         const nuevoId = data && data[0] ? data[0].id : Math.floor(1000 + Math.random() * 9000);
         setPedidoId(nuevoId);
         setCheckoutExitoso(true);
@@ -73,10 +76,10 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
   function handleFinalizarClick() {
     if (user) {
-      // Si está logueado, compramos inmediatamente con sus datos
-      procesarCompra(user.nombre, user.email, "");
+      // Usuario logueado: directo al paso de dirección
+      setMostrarFormDireccion(true);
     } else {
-      // Si no, mostramos el formulario de datos para invitado
+      // Invitado: primero pedimos datos de contacto
       setMostrarFormInvitado(true);
     }
   }
@@ -87,13 +90,38 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
       setErrorForm("Por favor completa los campos requeridos.");
       return;
     }
-    procesarCompra(invitadoNombre, invitadoEmail, invitadoTelefono);
+    setErrorForm("");
+    setMostrarFormInvitado(false);
+    setMostrarFormDireccion(true);
+  }
+
+  function handleDireccionValida(direccionRecibida: Direccion) {
+    setDireccion(direccionRecibida);
+  }
+
+  function handleConfirmarPedido() {
+    if (!direccion) return;
+    if (user) {
+      procesarCompra(user.nombre, user.email, "", direccion);
+    } else {
+      procesarCompra(invitadoNombre, invitadoEmail, invitadoTelefono, direccion);
+    }
+  }
+
+  function handleVolverDesdeDireccion() {
+    setMostrarFormDireccion(false);
+    setDireccion(null);
+    if (!user) {
+      setMostrarFormInvitado(true);
+    }
   }
 
   function resetState() {
     setCheckoutExitoso(false);
     setPedidoId(null);
     setMostrarFormInvitado(false);
+    setMostrarFormDireccion(false);
+    setDireccion(null);
     setInvitadoNombre("");
     setInvitadoEmail("");
     setInvitadoTelefono("");
@@ -124,7 +152,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
       {/* PANEL LATERAL */}
       <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white z-50 shadow-2xl transition-transform duration-300 flex flex-col ${isOpen ? "translate-x-0" : "translate-x-full"}`}>
-        
+
         {/* HEADER */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/8 flex-shrink-0">
           <div>
@@ -141,7 +169,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
         {/* CONTENIDO PRINCIPAL */}
         <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col">
-          
+
           {checkoutExitoso ? (
             /* COMPRA EXITOSA */
             <div className="flex flex-col items-center justify-center text-center gap-4 py-10 my-auto animate-fade-in">
@@ -177,6 +205,40 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                 Ver productos
               </button>
             </div>
+          ) : mostrarFormDireccion ? (
+            /* PASO DE DIRECCIÓN DE ENVÍO */
+            <div className="flex flex-col gap-4 py-4 animate-fade-in">
+              <div>
+                <h3 className="font-bold text-base text-gray-900">Dirección de envío</h3>
+                <p className="text-xs text-gray-500">Verificamos que la dirección exista antes de confirmar el pedido.</p>
+              </div>
+
+              <AddressForm onDireccionValida={handleDireccionValida} />
+
+              {errorForm && (
+                <div className="bg-red-50 text-red-600 border border-red-100 text-xs px-3 py-2.5 rounded-lg">
+                  ❌ {errorForm}
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={handleVolverDesdeDireccion}
+                  className="flex-1 py-3 border border-black/10 hover:border-black/25 text-gray-600 rounded-full text-xs font-semibold transition-all"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmarPedido}
+                  disabled={!direccion || comprando}
+                  className="flex-1 py-3 bg-[#1B87C8] hover:bg-[#1569A0] disabled:bg-gray-400 text-white rounded-full text-xs font-semibold transition-all"
+                >
+                  {comprando ? "Procesando..." : "Confirmar pedido"}
+                </button>
+              </div>
+            </div>
           ) : mostrarFormInvitado ? (
             /* FORMULARIO DE INVITADO */
             <div className="flex flex-col gap-5 py-4 animate-fade-in">
@@ -203,7 +265,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                     placeholder="Ej. Juan Pérez"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Email *</label>
                   <input
@@ -237,10 +299,9 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                   </button>
                   <button
                     type="submit"
-                    disabled={comprando}
-                    className="flex-1 py-3 bg-[#1B87C8] hover:bg-[#1569A0] disabled:bg-gray-400 text-white rounded-full text-xs font-semibold transition-all"
+                    className="flex-1 py-3 bg-[#1B87C8] hover:bg-[#1569A0] text-white rounded-full text-xs font-semibold transition-all"
                   >
-                    {comprando ? "Procesando..." : "Confirmar compra"}
+                    Continuar →
                   </button>
                 </div>
               </form>
@@ -266,7 +327,6 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                       ${(item.price * item.quantity).toLocaleString("es-AR")}
                     </div>
                   </div>
-                  {/* Controles de cantidad responsivos e interactivos */}
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                     <div className="flex items-center bg-white border border-black/10 rounded-full overflow-hidden shadow-sm">
                       <button
@@ -302,32 +362,37 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           )}
         </div>
 
-        {/* FOOTER CON TOTAL (No visible si se completó el checkout o el carrito está vacío) */}
-        {!checkoutExitoso && items.length > 0 && (
+        {/* FOOTER CON TOTAL */}
+        {!checkoutExitoso && items.length > 0 && !mostrarFormDireccion && !mostrarFormInvitado && (
           <div className="px-6 py-5 border-t border-black/8 bg-white flex-shrink-0">
             <div className="flex justify-between items-center mb-4">
               <span className="text-gray-500 font-medium">Total</span>
               <span className="text-2xl font-bold text-gray-900">${total.toLocaleString("es-AR")}</span>
             </div>
 
-            {!mostrarFormInvitado ? (
-              <button 
-                onClick={handleFinalizarClick}
-                disabled={comprando}
-                className="w-full bg-[#1B87C8] hover:bg-[#1569A0] text-white font-semibold py-3 rounded-full transition-colors mb-2 text-sm"
-              >
-                {comprando ? "Procesando pedido..." : "Finalizar compra"}
-              </button>
-            ) : null}
+            <button
+              onClick={handleFinalizarClick}
+              className="w-full bg-[#1B87C8] hover:bg-[#1569A0] text-white font-semibold py-3 rounded-full transition-colors mb-2 text-sm"
+            >
+              Finalizar compra
+            </button>
 
-            {!mostrarFormInvitado ? (
-              <button
-                onClick={resetState}
-                className="w-full border border-black/10 hover:border-[#1B87C8] text-gray-500 hover:text-[#1B87C8] font-medium py-3 rounded-full transition-colors text-xs"
-              >
-                Seguir comprando
-              </button>
-            ) : null}
+            <button
+              onClick={resetState}
+              className="w-full border border-black/10 hover:border-[#1B87C8] text-gray-500 hover:text-[#1B87C8] font-medium py-3 rounded-full transition-colors text-xs"
+            >
+              Seguir comprando
+            </button>
+          </div>
+        )}
+
+        {/* TOTAL VISIBLE TAMBIÉN DURANTE EL PASO DE DIRECCIÓN */}
+        {!checkoutExitoso && items.length > 0 && mostrarFormDireccion && (
+          <div className="px-6 py-4 border-t border-black/8 bg-white flex-shrink-0">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-medium text-sm">Total</span>
+              <span className="text-xl font-bold text-gray-900">${total.toLocaleString("es-AR")}</span>
+            </div>
           </div>
         )}
       </div>
