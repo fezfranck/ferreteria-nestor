@@ -77,19 +77,6 @@ export default function AddressForm({ onDireccionValida }: Props) {
     setVerificando(true);
 
     try {
-      const resDireccion = await fetch(
-        `${GEOREF_BASE}/direcciones?localidad_censal=${encodeURIComponent(localidad)}&direccion=${encodeURIComponent(`${calle} ${altura}`)}&max=1`
-      );
-      const dataDireccion = await resDireccion.json();
-
-      if (!dataDireccion.direcciones || dataDireccion.direcciones.length === 0) {
-        setErrorDireccion("No pudimos confirmar que esa calle y altura existan en la localidad elegida. Revisá los datos.");
-        setVerificando(false);
-        return;
-      }
-
-      const ubicacion = dataDireccion.direcciones[0].ubicacion;
-
       const resCP = await fetch("/api/validar-cp", {
         method: "POST",
         headers: {
@@ -120,10 +107,10 @@ export default function AddressForm({ onDireccionValida }: Props) {
       onDireccionValida({
         provincia, localidad, calle, altura, piso, indicaciones,
         codigoPostal: codigoPostal.trim(),
-        lat: ubicacion.lat, lon: ubicacion.lon,
+        lat: null, lon: null,
       });
     } catch (err) {
-      setErrorDireccion("No pudimos verificar la dirección. Probá de nuevo en un momento.");
+      setErrorDireccion("No pudimos verificar el código postal. Probá de nuevo en un momento.");
     }
 
     setVerificando(false);
