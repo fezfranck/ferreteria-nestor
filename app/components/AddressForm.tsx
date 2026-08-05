@@ -90,18 +90,25 @@ export default function AddressForm({ onDireccionValida }: Props) {
 
       const ubicacion = dataDireccion.direcciones[0].ubicacion;
 
-      const { data: cpValido, error } = await supabase.rpc("validar_codigo_postal", {
-        cp_input: codigoPostal.trim(),
-        localidad_input: localidad,
-        provincia_input: provincia,
+      const resCP = await fetch("/api/validar-cp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          codigoPostal: codigoPostal.trim(),
+          localidad,
+          provincia,
+        }),
       });
 
-      if (error) {
-        console.error("Error validando CP:", error);
+      if (!resCP.ok) {
         setErrorCP("No pudimos validar el código postal en este momento.");
         setVerificando(false);
         return;
       }
+
+      const { cpValido } = await resCP.json();
 
       if (!cpValido) {
         setErrorCP("Ese código postal no corresponde a la localidad elegida. Verificalo.");
