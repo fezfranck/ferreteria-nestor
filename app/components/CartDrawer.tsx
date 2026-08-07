@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
@@ -9,6 +9,18 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const DIRECCION_LOCAL: Direccion = {
+  provincia: "Santa Fe",
+  localidad: "Recreo",
+  calle: "Ignacio Crespo",
+  altura: "1136",
+  piso: "",
+  indicaciones: "Retiro en el local",
+  codigoPostal: "3018",
+  lat: null,
+  lon: null
+};
 
 export default function CartDrawer({ isOpen, onClose }: Props) {
   const { items, addItem, removeItem, decrementItem, total, count, clearCart } = useCart();
@@ -30,9 +42,46 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const [mostrarFormDireccion, setMostrarFormDireccion] = useState(false);
   const [direccion, setDireccion] = useState<Direccion | null>(null);
 
-  async function procesarCompra(nombre: string, email: string, telefono: string, direccionEnvio: Direccion) {
+  // Nuevos estados para método de entrega, resumen y pagos
+  const [costoEnvioConfig, setCostoEnvioConfig] = useState<number>(0);
+  const [formasPagoConfig, setFormasPagoConfig] = useState<string[]>([]);
+  const [mostrarMetodoEntrega, setMostrarMetodoEntrega] = useState(false);
+  const [metodoEntrega, setMetodoEntrega] = useState<"domicilio" | "retiro" | null>(null);
+  const [mostrarResumen, setMostrarResumen] = useState(false);
+  const [formaPago, setFormaPago] = useState<string>("");
+
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const { data, error } = await supabase
+          .from("configuracion")
+          .select("costo_envio, formas_pago")
+          .eq("id", 1)
+          .single();
+        if (!error && data) {
+          setCostoEnvioConfig(Number(data.costo_envio) || 0);
+          setFormasPagoConfig(data.formas_pago || ["Efectivo", "Transferencia bancaria"]);
+        } else {
+          setCostoEnvioConfig(0);
+          setFormasPagoConfig(["Efectivo", "Transferencia bancaria"]);
+        }
+      } catch (err) {
+        console.error("Error cargando configuracion de envío:", err);
+        setCostoEnvioConfig(0);
+        setFormasPagoConfig(["Efectivo", "Transferencia bancaria"]);
+      }
+    }
+    if (isOpen) {
+      fetchConfig();
+    }
+  }, [isOpen]);
+
+  async function procesarCompra(nombre: string, email: string, telefono: string, direccionEnvio: Direccion | null) {
     setComprando(true);
     setErrorForm("");
+
+    const finalCostoEnvio = metodoEntrega === "domicilio" ? costoEnvioConfig : 0;
+    const totalPedido = total + finalCostoEnvio;
 
     try {
       const { data, error } = await supabase
@@ -41,7 +90,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           {
             cliente_nombre: nombre,
             cliente_email: email,
-            total: total,
+            total: totalPedido,
             items: items.map(item => ({
               id: item.id,
               name: item.name,
@@ -52,7 +101,10 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
             })),
             direccion_envio: direccionEnvio,
             estado: "Pendiente",
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            metodo_entrega: metodoEntrega,
+            costo_envio: finalCostoEnvio,
+            forma_pago: formaPago
           }
         ])
         .select();
@@ -76,8 +128,8 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
   function handleFinalizarClick() {
     if (user) {
-      // Usuario logueado: directo al paso de dirección
-      setMostrarFormDireccion(true);
+      // Usuario logueado: directo al paso de método de entrega
+      setMostrarMetodoEntrega(true);
     } else {
       // Invitado: primero pedimos datos de contacto
       setMostrarFormInvitado(true);
@@ -92,7 +144,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     }
     setErrorForm("");
     setMostrarFormInvitado(false);
-    setMostrarFormDireccion(true);
+    setMostrarMetodoEntrega(true);
   }
 
   function handleDireccionValida(direccionRecibida: Direccion) {
@@ -100,7 +152,6 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   }
 
   function handleConfirmarPedido() {
-    if (!direccion) return;
     if (user) {
       procesarCompra(user.nombre, user.email, "", direccion);
     } else {
@@ -110,18 +161,20 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
   function handleVolverDesdeDireccion() {
     setMostrarFormDireccion(false);
+    setMostrarMetodoEntrega(true);
     setDireccion(null);
-    if (!user) {
-      setMostrarFormInvitado(true);
-    }
   }
 
   function resetState() {
     setCheckoutExitoso(false);
     setPedidoId(null);
     setMostrarFormInvitado(false);
+    setMostrarMetodoEntrega(false);
     setMostrarFormDireccion(false);
+    setMostrarResumen(false);
+    setMetodoEntrega(null);
     setDireccion(null);
+    setFormaPago("");
     setInvitadoNombre("");
     setInvitadoEmail("");
     setInvitadoTelefono("");
@@ -205,6 +258,134 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                 Ver productos
               </button>
             </div>
+          ) : mostrarResumen ? (
+            /* PASO DE RESUMEN DEL PEDIDO */
+            <div className="flex flex-col gap-4 py-4 animate-fade-in">
+              <div>
+                <h3 className="font-bold text-base text-gray-900">Resumen del pedido</h3>
+                <p className="text-xs text-gray-500">Revisá los detalles de tu compra antes de confirmar.</p>
+              </div>
+
+              {/* Lista de productos en el resumen */}
+              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto mb-2 border border-black/5 rounded-xl p-3 bg-gray-50/50">
+                {items.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center text-xs py-1.5 border-b border-black/5 last:border-0">
+                    <div className="flex-1 min-w-0 pr-3">
+                      <div className="font-semibold text-gray-955 truncate">{item.name}</div>
+                      <div className="text-[10px] text-gray-400">{item.brand} (x{item.quantity})</div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-bold text-gray-900">${(item.price * item.quantity).toLocaleString("es-AR")}</div>
+                      <div className="text-[9px] text-gray-400">c/u: ${item.price.toLocaleString("es-AR")}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Detalle de entrega */}
+              {metodoEntrega === "domicilio" ? (
+                <div className="bg-[#F0F7FD] border border-[#1B87C8]/10 rounded-xl p-3 text-xs">
+                  <div className="font-bold text-gray-900 mb-1 flex items-center gap-1">📍 Dirección de envío</div>
+                  <p className="text-gray-700 font-medium">
+                    {direccion?.calle} {direccion?.altura} {direccion?.piso && `, Piso/Depto: ${direccion.piso}`}
+                  </p>
+                  <p className="text-gray-500">
+                    {direccion?.localidad}, {direccion?.provincia} (CP {direccion?.codigoPostal})
+                  </p>
+                  {direccion?.indicaciones && (
+                    <p className="text-gray-500 italic mt-1">Ref: {direccion.indicaciones}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-green-50 border border-green-200/50 rounded-xl p-3 text-xs">
+                  <div className="font-bold text-gray-900 mb-1 flex items-center gap-1">🏪 Retiro en el local</div>
+                  <p className="text-gray-700 font-medium">Ignacio Crespo 1136</p>
+                  <p className="text-gray-500">Recreo, Santa Fe (CP 3018)</p>
+                  <p className="text-gray-400 mt-1 italic">Retiralo gratis en nuestra sucursal.</p>
+                </div>
+              )}
+
+              {/* Desglose de totales */}
+              <div className="border-t border-dashed border-black/10 pt-3 text-xs flex flex-col gap-1.5">
+                <div className="flex justify-between text-gray-500">
+                  <span>Subtotal productos</span>
+                  <span>${total.toLocaleString("es-AR")}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Costo de envío</span>
+                  {metodoEntrega === "domicilio" ? (
+                    <span>${costoEnvioConfig.toLocaleString("es-AR")}</span>
+                  ) : (
+                    <span className="text-[#16A34A] font-bold">Gratis</span>
+                  )}
+                </div>
+                <div className="flex justify-between text-sm font-bold text-gray-900 border-t pt-2 mt-1">
+                  <span>Total final</span>
+                  <span className="text-lg text-[#1B87C8] font-black">
+                    ${(total + (metodoEntrega === "domicilio" ? costoEnvioConfig : 0)).toLocaleString("es-AR")}
+                  </span>
+                </div>
+              </div>
+
+              {/* Selector de forma de pago */}
+              <div className="mt-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Forma de Pago *</label>
+                <div className="flex flex-col gap-2">
+                  {formasPagoConfig.map((fp) => (
+                    <label
+                      key={fp}
+                      className={`flex items-center gap-3 p-3 rounded-lg border text-xs cursor-pointer transition-all ${
+                        formaPago === fp
+                          ? "border-[#1B87C8] bg-[#F0F7FD] font-bold text-gray-900"
+                          : "border-black/10 text-gray-700 hover:border-black/20"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="formaPago"
+                        value={fp}
+                        checked={formaPago === fp}
+                        onChange={() => setFormaPago(fp)}
+                        className="accent-[#1B87C8] h-4 w-4"
+                      />
+                      {fp}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {errorForm && (
+                <div className="bg-red-50 text-red-600 border border-red-100 text-xs px-3 py-2.5 rounded-lg mt-2">
+                  ❌ {errorForm}
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMostrarResumen(false);
+                    if (metodoEntrega === "domicilio") {
+                      setMostrarFormDireccion(true);
+                    } else {
+                      setMostrarMetodoEntrega(true);
+                      setDireccion(null);
+                    }
+                  }}
+                  className="flex-1 py-3 border border-black/10 hover:border-black/25 text-gray-600 rounded-full text-xs font-semibold transition-all"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmarPedido}
+                  disabled={!formaPago || comprando}
+                  className="flex-1 py-3 bg-[#1B87C8] hover:bg-[#1569A0] disabled:bg-gray-400 text-white rounded-full text-xs font-semibold transition-all"
+                >
+                  {comprando ? "Procesando..." : "Confirmar pedido"}
+                </button>
+              </div>
+            </div>
           ) : mostrarFormDireccion ? (
             /* PASO DE DIRECCIÓN DE ENVÍO */
             <div className="flex flex-col gap-4 py-4 animate-fade-in">
@@ -231,11 +412,87 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                 </button>
                 <button
                   type="button"
-                  onClick={handleConfirmarPedido}
-                  disabled={!direccion || comprando}
+                  onClick={() => {
+                    setMostrarFormDireccion(false);
+                    setMostrarResumen(true);
+                  }}
+                  disabled={!direccion}
                   className="flex-1 py-3 bg-[#1B87C8] hover:bg-[#1569A0] disabled:bg-gray-400 text-white rounded-full text-xs font-semibold transition-all"
                 >
-                  {comprando ? "Procesando..." : "Confirmar pedido"}
+                  Continuar al resumen →
+                </button>
+              </div>
+            </div>
+          ) : mostrarMetodoEntrega ? (
+            /* PASO DE MÉTODO DE ENTREGA */
+            <div className="flex flex-col gap-5 py-4 animate-fade-in">
+              <div>
+                <h3 className="font-bold text-base text-gray-900">Método de entrega</h3>
+                <p className="text-xs text-gray-500">Seleccioná cómo querés recibir tu compra.</p>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                {/* Opción Domicilio */}
+                <div
+                  className={metodoEntrega === "domicilio" ? "flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[#1B87C8] bg-[#F0F7FD] cursor-pointer text-center transition-all w-full" : "flex flex-col items-center gap-2 p-4 rounded-xl border border-black/10 hover:border-black/20 cursor-pointer text-center transition-all w-full"}
+                  onClick={() => setMetodoEntrega("domicilio")}
+                >
+                  <span className="text-3xl">🚚</span>
+                  <div>
+                    <div className="font-bold text-sm text-gray-900">Envío a domicilio</div>
+                    <div className="text-xs text-gray-500">Recibí el pedido en tu puerta.</div>
+                    <div className="text-xs font-bold text-[#1B87C8] mt-1">
+                      Costo: ${costoEnvioConfig.toLocaleString("es-AR")}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Opción Retiro */}
+                <div
+                  className={metodoEntrega === "retiro" ? "flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[#1B87C8] bg-[#F0F7FD] cursor-pointer text-center transition-all w-full" : "flex flex-col items-center gap-2 p-4 rounded-xl border border-black/10 hover:border-black/20 cursor-pointer text-center transition-all w-full"}
+                  onClick={() => setMetodoEntrega("retiro")}
+                >
+                  <span className="text-3xl">🏪</span>
+                  <div>
+                    <div className="font-bold text-sm text-gray-900">Retiro en el local</div>
+                    <div className="text-xs text-gray-500">Ignacio Crespo 1136, Recreo.</div>
+                    <div className="text-xs font-bold text-[#16A34A] mt-1">
+                      Gratis
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMostrarMetodoEntrega(false);
+                    if (user) {
+                      // Volver al carrito, se controla al ocultar mostrarMetodoEntrega
+                    } else {
+                      setMostrarFormInvitado(true);
+                    }
+                  }}
+                  className="flex-1 py-3 border border-black/10 hover:border-black/25 text-gray-600 rounded-full text-xs font-semibold transition-all"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  disabled={!metodoEntrega}
+                  onClick={() => {
+                    setMostrarMetodoEntrega(false);
+                    if (metodoEntrega === "domicilio") {
+                      setMostrarFormDireccion(true);
+                    } else {
+                      setDireccion(DIRECCION_LOCAL);
+                      setMostrarResumen(true);
+                    }
+                  }}
+                  className="flex-1 py-3 bg-[#1B87C8] hover:bg-[#1569A0] disabled:bg-gray-400 text-white rounded-full text-xs font-semibold transition-all"
+                >
+                  Continuar →
                 </button>
               </div>
             </div>
@@ -363,7 +620,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
         </div>
 
         {/* FOOTER CON TOTAL */}
-        {!checkoutExitoso && items.length > 0 && !mostrarFormDireccion && !mostrarFormInvitado && (
+        {!checkoutExitoso && items.length > 0 && !mostrarFormDireccion && !mostrarFormInvitado && !mostrarMetodoEntrega && !mostrarResumen && (
           <div className="px-6 py-5 border-t border-black/8 bg-white flex-shrink-0">
             <div className="flex justify-between items-center mb-4">
               <span className="text-gray-500 font-medium">Total</span>
@@ -386,11 +643,11 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           </div>
         )}
 
-        {/* TOTAL VISIBLE TAMBIÉN DURANTE EL PASO DE DIRECCIÓN */}
-        {!checkoutExitoso && items.length > 0 && mostrarFormDireccion && (
+        {/* TOTAL PARCIAL VISIBLE DURANTE OTROS PASOS DE CHECKOUT */}
+        {!checkoutExitoso && items.length > 0 && (mostrarFormDireccion || mostrarMetodoEntrega || mostrarFormInvitado) && (
           <div className="px-6 py-4 border-t border-black/8 bg-white flex-shrink-0">
             <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-medium text-sm">Total</span>
+              <span className="text-gray-500 font-medium text-sm">Total parcial</span>
               <span className="text-xl font-bold text-gray-900">${total.toLocaleString("es-AR")}</span>
             </div>
           </div>
