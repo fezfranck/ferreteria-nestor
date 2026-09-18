@@ -11,8 +11,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!user && pathname !== "/admin") {
       router.push("/admin");
+    } else if (user && user.rol === "comprador") {
+      router.push("/cuenta/pedidos");
     }
   }, [user, pathname, router]);
+
+  // Si el usuario es comprador, no tiene acceso a ninguna ruta de /admin
+  if (user && user.rol === "comprador") {
+    return null;
+  }
 
   // En la página de login no mostramos el sidebar
   if (pathname === "/admin") {
@@ -22,12 +29,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!user) return null;
 
  const navItems = [
-  { icon: "📊", label: "Dashboard", href: "/admin/dashboard", roles: ["superadmin", "admin", "vendedor", "comprador"] },
+  { icon: "📊", label: "Dashboard", href: "/admin/dashboard", roles: ["superadmin", "admin", "vendedor"] },
   { icon: "📦", label: "Productos", href: "/admin/productos", roles: ["superadmin", "admin", "vendedor"] },
   { icon: "🛒", label: "Pedidos", href: "/admin/pedidos", roles: ["superadmin", "admin", "vendedor"] },
   { icon: "👥", label: "Usuarios", href: "/admin/usuarios", roles: ["superadmin"] },
   { icon: "🔐", label: "Permisos", href: "/admin/permisos", roles: ["superadmin"] },
-  { icon: "⚙️", label: "Configuración", href: "/admin/configuracion", roles: ["superadmin", "admin"] },  // ← nueva línea
+  { icon: "⚙️", label: "Configuración", href: "/admin/configuracion", roles: ["superadmin", "admin"] },
 ].filter(item => item.roles.includes(user.rol));
 
   const roleColors: Record<string, string> = {

@@ -142,9 +142,9 @@ export default function AccountDrawer({ isOpen, onClose }: Props) {
               {/* Opciones */}
               <div className="flex flex-col gap-2 mb-6">
                 {[
-                  { icon: "🛒", label: "Mis pedidos", action: () => {} },
-                  { icon: "👤", label: "Mis datos", action: () => {} },
-                  { icon: "📍", label: "Mis direcciones", action: () => {} },
+                  { icon: "🛒", label: "Mis pedidos", action: () => { router.push("/cuenta/pedidos"); onClose(); } },
+                  { icon: "👤", label: "Mis datos", action: () => { router.push("/cuenta/datos"); onClose(); } },
+                  { icon: "📍", label: "Mis direcciones", action: () => { router.push("/cuenta/direcciones"); onClose(); } },
                 ].map((item) => (
                   <button
                     key={item.label}
