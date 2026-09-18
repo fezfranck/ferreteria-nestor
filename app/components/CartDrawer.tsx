@@ -76,7 +76,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     }
   }, [isOpen]);
 
-  async function procesarCompra(nombre: string, email: string, telefono: string, direccionEnvio: Direccion | null) {
+  async function procesarCompra(nombre: string, email: string, telefono: string, direccionEnvio: Direccion | null, userId: string | null = null) {
     setComprando(true);
     setErrorForm("");
 
@@ -84,29 +84,33 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     const totalPedido = total + finalCostoEnvio;
 
     try {
+      const pedidoAInsertar: Record<string, unknown> = {
+        cliente_nombre: nombre,
+        cliente_email: email,
+        total: totalPedido,
+        items: items.map(item => ({
+          id: item.id,
+          name: item.name,
+          brand: item.brand,
+          price: item.price,
+          quantity: item.quantity,
+          icon: item.icon
+        })),
+        direccion_envio: direccionEnvio,
+        estado: "Pendiente",
+        created_at: new Date().toISOString(),
+        metodo_entrega: metodoEntrega,
+        costo_envio: finalCostoEnvio,
+        forma_pago: formaPago
+      };
+
+      if (userId) {
+        pedidoAInsertar.user_id = userId;
+      }
+
       const { data, error } = await supabase
         .from("pedidos")
-        .insert([
-          {
-            cliente_nombre: nombre,
-            cliente_email: email,
-            total: totalPedido,
-            items: items.map(item => ({
-              id: item.id,
-              name: item.name,
-              brand: item.brand,
-              price: item.price,
-              quantity: item.quantity,
-              icon: item.icon
-            })),
-            direccion_envio: direccionEnvio,
-            estado: "Pendiente",
-            created_at: new Date().toISOString(),
-            metodo_entrega: metodoEntrega,
-            costo_envio: finalCostoEnvio,
-            forma_pago: formaPago
-          }
-        ])
+        .insert([pedidoAInsertar])
         .select();
 
       if (error) {
@@ -153,9 +157,9 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
   function handleConfirmarPedido() {
     if (user) {
-      procesarCompra(user.nombre, user.email, "", direccion);
+      procesarCompra(user.nombre, user.email, "", direccion, user.id);
     } else {
-      procesarCompra(invitadoNombre, invitadoEmail, invitadoTelefono, direccion);
+      procesarCompra(invitadoNombre, invitadoEmail, invitadoTelefono, direccion, null);
     }
   }
 
