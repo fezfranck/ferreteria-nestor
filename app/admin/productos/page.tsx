@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 
 interface Producto {
@@ -179,13 +180,21 @@ export default function AdminProductos() {
             {productos.length} productos en total
           </p>
         </div>
-        <button
-          onClick={abrirNuevo}
-          className="px-5 py-2 rounded-lg font-bold text-sm transition-all"
-          style={{ background: "#1B87C8", color: "white" }}
-        >
-          + Nuevo producto
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/productos/importar"
+            className="px-4 py-2 rounded-lg font-bold text-sm transition-all border border-[#1B87C8] text-[#1B87C8] bg-white hover:bg-[#F0F7FD] flex items-center gap-1.5 shadow-xs"
+          >
+            <span>📥</span> Carga masiva
+          </Link>
+          <button
+            onClick={abrirNuevo}
+            className="px-5 py-2 rounded-lg font-bold text-sm transition-all shadow-xs hover:brightness-105"
+            style={{ background: "#1B87C8", color: "white" }}
+          >
+            + Nuevo producto
+          </button>
+        </div>
       </div>
 
       {/* Buscador */}
