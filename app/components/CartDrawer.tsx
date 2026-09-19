@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabase";
+import { ESTADOS_PEDIDO } from "../lib/constants";
 import AddressForm, { Direccion } from "./AddressForm";
 
 interface Props {
@@ -97,12 +98,16 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           icon: item.icon
         })),
         direccion_envio: direccionEnvio,
-        estado: "Pendiente",
+        estado: ESTADOS_PEDIDO.PENDIENTE_REVISION,
         created_at: new Date().toISOString(),
         metodo_entrega: metodoEntrega,
         costo_envio: finalCostoEnvio,
         forma_pago: formaPago
       };
+
+      if (telefono?.trim()) {
+        pedidoAInsertar.cliente_telefono = telefono.trim();
+      }
 
       if (userId) {
         pedidoAInsertar.user_id = userId;
@@ -115,7 +120,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
       if (error) {
         console.error("Error creating order:", error);
-        setErrorForm("No pudimos registrar tu compra. Intentalo de nuevo.");
+        setErrorForm("No pudimos registrar tu solicitud. Intentalo de nuevo.");
       } else {
         const nuevoId = data && data[0] ? data[0].id : Math.floor(1000 + Math.random() * 9000);
         setPedidoId(nuevoId);
@@ -228,25 +233,37 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
         <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col">
 
           {checkoutExitoso ? (
-            /* COMPRA EXITOSA */
-            <div className="flex flex-col items-center justify-center text-center gap-4 py-10 my-auto animate-fade-in">
-              <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-5xl border border-green-200">
-                🎉
+            /* SOLICITUD RECIBIDA */
+            <div className="flex flex-col items-center justify-center text-center gap-4 py-8 my-auto animate-fade-in">
+              <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-5xl border border-blue-200 shadow-sm">
+                📋
               </div>
-              <h3 className="font-black text-3xl uppercase text-gray-900" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
-                ¡Compra Exitosa!
-              </h3>
-              <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
-                Registramos tu pedido <span className="font-bold text-[#1B87C8]">#{pedidoId}</span> correctamente. En breve nos pondremos en contacto contigo para coordinar el pago y el envío.
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#1B87C8] bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                  Pre-compra registrada
+                </span>
+                <h3 className="font-black text-3xl uppercase text-gray-900 mt-2" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                  ¡Solicitud Recibida!
+                </h3>
+              </div>
+              <div className="bg-[#F0F7FD] border border-[#D6EAF8] rounded-xl px-4 py-2 text-xs text-[#1B87C8] font-bold">
+                Pedido <span className="text-base font-black text-[#1569A0]">#{pedidoId}</span>
+              </div>
+              <p className="text-sm text-gray-600 max-w-xs leading-relaxed">
+                Registramos tu solicitud correctamente. Nuestro equipo verificará el stock disponible en el local y te contactará por teléfono o email para coordinar el pago y la entrega.
               </p>
-              <div className="bg-[#F0F7FD] border border-[#D6EAF8] rounded-xl p-4 text-xs text-[#1B87C8] font-semibold mt-2">
-                ¡Gracias por confiar en Electricidad Néstor!
+              <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-900 text-left w-full flex items-start gap-2.5">
+                <span className="text-base flex-shrink-0">⚠️</span>
+                <div>
+                  <div className="font-bold">No realizás ningún pago en este paso</div>
+                  <div className="text-amber-800 text-[11px] mt-0.5">El pago se coordina directamente con el vendedor una vez que confirmemos la disponibilidad de tus productos.</div>
+                </div>
               </div>
               <button
                 onClick={resetState}
-                className="mt-6 bg-[#1B87C8] hover:bg-[#1569A0] text-white text-sm font-semibold px-8 py-3 rounded-full transition-colors w-full"
+                className="mt-3 bg-[#1B87C8] hover:bg-[#1569A0] text-white text-sm font-semibold px-8 py-3 rounded-full transition-colors w-full shadow-sm"
               >
-                Cerrar y seguir comprando
+                Entendido, seguir navegando
               </button>
             </div>
           ) : items.length === 0 ? (
@@ -267,7 +284,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
             <div className="flex flex-col gap-4 py-4 animate-fade-in">
               <div>
                 <h3 className="font-bold text-base text-gray-900">Resumen del pedido</h3>
-                <p className="text-xs text-gray-500">Revisá los detalles de tu compra antes de confirmar.</p>
+                <p className="text-xs text-gray-500">Revisá los detalles de tu solicitud antes de enviarla.</p>
               </div>
 
               {/* Lista de productos en el resumen */}
@@ -386,7 +403,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                   disabled={!formaPago || comprando}
                   className="flex-1 py-3 bg-[#1B87C8] hover:bg-[#1569A0] disabled:bg-gray-400 text-white rounded-full text-xs font-semibold transition-all"
                 >
-                  {comprando ? "Procesando..." : "Confirmar pedido"}
+                  {comprando ? "Enviando solicitud..." : "Enviar solicitud de compra"}
                 </button>
               </div>
             </div>
@@ -505,7 +522,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
             <div className="flex flex-col gap-5 py-4 animate-fade-in">
               <div>
                 <h3 className="font-bold text-base text-gray-900">Completa tus datos</h3>
-                <p className="text-xs text-gray-500">Necesitamos estos datos para registrar tu pedido de compra.</p>
+                <p className="text-xs text-gray-500">Necesitamos estos datos para registrar tu solicitud de pre-compra.</p>
               </div>
 
               {errorForm && (

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
+import { ESTADOS_CONFIG } from "../../lib/constants";
 
 interface OrderItem {
   id: string | number;
@@ -20,21 +21,13 @@ interface Pedido {
   cliente_email: string;
   total: number;
   items: OrderItem[] | string;
-  estado: "Pendiente" | "Preparando" | "Enviado" | "Completado" | "Cancelado";
+  estado: string;
   created_at?: string;
   fecha?: string;
   metodo_entrega?: string;
   forma_pago?: string;
   costo_envio?: number;
 }
-
-const ESTADOS_INFO: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  Pendiente: { label: "Pendiente", color: "#F5A623", bg: "rgba(245,166,35,0.12)", icon: "⏳" },
-  Preparando: { label: "Preparando", color: "#1B87C8", bg: "rgba(27,135,200,0.12)", icon: "📦" },
-  Enviado: { label: "Enviado", color: "#805AD5", bg: "rgba(128,90,213,0.12)", icon: "🚚" },
-  Completado: { label: "Completado", color: "#38A169", bg: "rgba(56,161,105,0.12)", icon: "✅" },
-  Cancelado: { label: "Cancelado", color: "#DC2626", bg: "rgba(220,38,38,0.12)", icon: "❌" },
-};
 
 function parseOrderItems(itemsData: unknown): OrderItem[] {
   if (!itemsData) return [];
@@ -149,7 +142,7 @@ export default function MisPedidosPage() {
       <div className="flex flex-col gap-5">
         {pedidos.map((pedido) => {
           const itemsList = parseOrderItems(pedido.items);
-          const est = ESTADOS_INFO[pedido.estado] || {
+          const est = ESTADOS_CONFIG[pedido.estado] || {
             label: pedido.estado,
             color: "#64748B",
             bg: "rgba(100,116,139,0.1)",
@@ -254,7 +247,7 @@ export default function MisPedidosPage() {
                 </div>
 
                 <div className="flex items-baseline gap-2 ml-auto">
-                  <span className="text-xs uppercase font-bold text-gray-500">Total pagado:</span>
+                  <span className="text-xs uppercase font-bold text-gray-500">Total:</span>
                   <span
                     className="text-2xl font-black text-[#1B87C8]"
                     style={{ fontFamily: "'Barlow Condensed', sans-serif" }}

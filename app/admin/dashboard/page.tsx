@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
+import { ESTADOS_CONFIG } from "../../lib/constants";
 
 interface OrderItem {
   id: string;
@@ -20,7 +21,7 @@ interface PedidoComprador {
   cliente_email: string;
   total: number;
   items: OrderItem[] | string;
-  estado: "Pendiente" | "Preparando" | "Enviado" | "Completado" | "Cancelado";
+  estado: string;
   created_at?: string;
   fecha?: string;
   metodo_entrega?: "domicilio" | "retiro" | null;
@@ -34,14 +35,6 @@ interface PedidoComprador {
   costo_envio?: number;
   forma_pago?: string;
 }
-
-const ESTADOS_COMPRADOR: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  Pendiente: { label: "Pendiente", color: "#F5A623", bg: "rgba(245,166,35,0.1)", icon: "⏳" },
-  Preparando: { label: "Preparando", color: "#1B87C8", bg: "rgba(27,135,200,0.1)", icon: "📦" },
-  Enviado: { label: "Enviado", color: "#805AD5", bg: "rgba(128,90,213,0.1)", icon: "🚚" },
-  Completado: { label: "Completado", color: "#38A169", bg: "rgba(56,161,105,0.1)", icon: "✅" },
-  Cancelado: { label: "Cancelado", color: "#DC2626", bg: "rgba(220,38,38,0.1)", icon: "❌" },
-};
 
 function parseItems(itemsData: unknown): OrderItem[] {
   if (!itemsData) return [];
@@ -204,7 +197,7 @@ export default function Dashboard() {
             <div className="flex flex-col gap-5">
               {misPedidos.map((pedido) => {
                 const itemsList = parseItems(pedido.items);
-                const est = ESTADOS_COMPRADOR[pedido.estado] || {
+                const est = ESTADOS_CONFIG[pedido.estado] || {
                   label: pedido.estado,
                   color: "#555",
                   bg: "rgba(0,0,0,0.06)",
