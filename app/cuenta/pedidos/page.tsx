@@ -23,6 +23,7 @@ interface Pedido {
   items: OrderItem[] | string;
   estado: string;
   created_at?: string;
+  creado_en?: string;
   fecha?: string;
   metodo_entrega?: string;
   forma_pago?: string;
@@ -149,7 +150,7 @@ export default function MisPedidosPage() {
             icon: "📋",
           };
 
-          const rawDate = pedido.created_at || pedido.fecha;
+          const rawDate = pedido.creado_en || pedido.created_at || pedido.fecha;
           const fechaFormateada = rawDate
             ? new Date(rawDate).toLocaleDateString("es-AR", {
                 day: "2-digit",

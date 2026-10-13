@@ -35,6 +35,7 @@ interface Pedido {
   items: OrderItem[] | string;
   estado: string;
   created_at?: string;
+  creado_en?: string;
   fecha?: string;
   metodo_entrega?: "domicilio" | "retiro" | null;
   direccion_envio?: DireccionEnvio | null;
@@ -479,7 +480,7 @@ export default function AdminPedidos() {
                       bg: "rgba(100,116,139,0.1)",
                       icon: "📋",
                     };
-                    const dateStr = p.created_at || p.fecha || "";
+                    const dateStr = p.creado_en || p.created_at || p.fecha || "";
                     const dateObj = dateStr ? new Date(dateStr) : null;
                     const dateFormatted = dateObj
                       ? dateObj.toLocaleDateString("es-AR", {
@@ -580,8 +581,8 @@ export default function AdminPedidos() {
                     Pedido <span className="text-[#1B87C8]">#{pedidoDetalle.id}</span>
                   </h3>
                   <span className="text-xs text-gray-400">
-                    {pedidoDetalle.created_at || pedidoDetalle.fecha
-                      ? new Date(pedidoDetalle.created_at || pedidoDetalle.fecha!).toLocaleString("es-AR")
+                    {pedidoDetalle.creado_en || pedidoDetalle.created_at || pedidoDetalle.fecha
+                      ? new Date(pedidoDetalle.creado_en || pedidoDetalle.created_at || pedidoDetalle.fecha!).toLocaleString("es-AR")
                       : ""}
                   </span>
                 </div>
@@ -722,6 +723,12 @@ export default function AdminPedidos() {
                               Ref: {pedidoDetalle.direccion_envio.indicaciones}
                             </p>
                           )}
+                        </div>
+                      ) : pedidoDetalle.nota_staff?.includes("[Dirección de entrega]:") ? (
+                        <div className="text-gray-600 leading-snug">
+                          <p className="font-medium text-gray-800">
+                            {pedidoDetalle.nota_staff.replace("[Dirección de entrega]:", "").trim()}
+                          </p>
                         </div>
                       ) : (
                         <p className="text-gray-400 italic">Sin dirección especificada</p>

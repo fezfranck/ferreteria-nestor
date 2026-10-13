@@ -23,6 +23,7 @@ interface PedidoComprador {
   items: OrderItem[] | string;
   estado: string;
   created_at?: string;
+  creado_en?: string;
   fecha?: string;
   metodo_entrega?: "domicilio" | "retiro" | null;
   direccion_envio?: {
@@ -34,6 +35,7 @@ interface PedidoComprador {
   } | null;
   costo_envio?: number;
   forma_pago?: string;
+  nota_staff?: string;
 }
 
 function parseItems(itemsData: unknown): OrderItem[] {
@@ -203,7 +205,7 @@ export default function Dashboard() {
                   bg: "rgba(0,0,0,0.06)",
                   icon: "📋",
                 };
-                const dateStr = pedido.created_at || pedido.fecha;
+                const dateStr = pedido.creado_en || pedido.created_at || pedido.fecha;
                 const dateFormatted = dateStr
                   ? new Date(dateStr).toLocaleDateString("es-AR", {
                       day: "2-digit",
@@ -294,11 +296,15 @@ export default function Dashboard() {
                               <span>
                                 {pedido.metodo_entrega === "domicilio" ? "🚚 Envío a domicilio" : "🏪 Retiro en el local"}
                               </span>
-                              {pedido.direccion_envio?.calle && (
+                              {pedido.direccion_envio?.calle ? (
                                 <span className="text-gray-400">
                                   ({pedido.direccion_envio.calle} {pedido.direccion_envio.altura})
                                 </span>
-                              )}
+                              ) : pedido.nota_staff?.includes("[Dirección de entrega]:") ? (
+                                <span className="text-gray-400 truncate max-w-[200px]" title={pedido.nota_staff.replace("[Dirección de entrega]:", "").trim()}>
+                                  ({pedido.nota_staff.replace("[Dirección de entrega]:", "").trim().slice(0, 30)}...)
+                                </span>
+                              ) : null}
                             </div>
                           )}
                           {pedido.forma_pago && (

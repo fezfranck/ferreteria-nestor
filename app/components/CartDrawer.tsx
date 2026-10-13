@@ -39,17 +39,20 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const [invitadoTelefono, setInvitadoTelefono] = useState("");
   const [errorForm, setErrorForm] = useState("");
 
+  // Teléfono de contacto para usuario logueado
+  const [usuarioTelefono, setUsuarioTelefono] = useState("");
+
   // Paso de dirección
   const [mostrarFormDireccion, setMostrarFormDireccion] = useState(false);
   const [direccion, setDireccion] = useState<Direccion | null>(null);
 
   // Nuevos estados para método de entrega, resumen y pagos
   const [costoEnvioConfig, setCostoEnvioConfig] = useState<number>(0);
-  const [formasPagoConfig, setFormasPagoConfig] = useState<string[]>([]);
+  const [formasPagoConfig, setFormasPagoConfig] = useState<string[]>(["Efectivo", "Transferencia bancaria"]);
   const [mostrarMetodoEntrega, setMostrarMetodoEntrega] = useState(false);
   const [metodoEntrega, setMetodoEntrega] = useState<"domicilio" | "retiro" | null>(null);
   const [mostrarResumen, setMostrarResumen] = useState(false);
-  const [formaPago, setFormaPago] = useState<string>("");
+  const [formaPago, setFormaPago] = useState<string>("Efectivo");
 
   useEffect(() => {
     async function fetchConfig() {
@@ -61,15 +64,21 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           .single();
         if (!error && data) {
           setCostoEnvioConfig(Number(data.costo_envio) || 0);
-          setFormasPagoConfig(data.formas_pago || ["Efectivo", "Transferencia bancaria"]);
+          const pagos = Array.isArray(data.formas_pago) && data.formas_pago.length > 0
+            ? data.formas_pago
+            : ["Efectivo", "Transferencia bancaria"];
+          setFormasPagoConfig(pagos);
+          setFormaPago((prev) => (prev && pagos.includes(prev) ? prev : pagos[0]));
         } else {
           setCostoEnvioConfig(0);
           setFormasPagoConfig(["Efectivo", "Transferencia bancaria"]);
+          setFormaPago((prev) => prev || "Efectivo");
         }
       } catch (err) {
         console.error("Error cargando configuracion de envío:", err);
         setCostoEnvioConfig(0);
         setFormasPagoConfig(["Efectivo", "Transferencia bancaria"]);
+        setFormaPago((prev) => prev || "Efectivo");
       }
     }
     if (isOpen) {
@@ -97,13 +106,16 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           quantity: item.quantity,
           icon: item.icon
         })),
-        direccion_envio: direccionEnvio,
         estado: ESTADOS_PEDIDO.PENDIENTE_REVISION,
-        created_at: new Date().toISOString(),
+        creado_en: new Date().toISOString(),
         metodo_entrega: metodoEntrega,
         costo_envio: finalCostoEnvio,
-        forma_pago: formaPago
+        forma_pago: formaPago || "Efectivo"
       };
+
+      if (direccionEnvio) {
+        pedidoAInsertar.direccion_envio = direccionEnvio;
+      }
 
       if (telefono?.trim()) {
         pedidoAInsertar.cliente_telefono = telefono.trim();
@@ -113,14 +125,42 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
         pedidoAInsertar.user_id = userId;
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("pedidos")
         .insert([pedidoAInsertar])
         .select();
 
+      // Si falla por foreign key en user_id (ej: usuario no sincronizado en auth.users):
+      if (error && (error.message?.includes("user_id") || error.code === "23503")) {
+        console.warn("Fallo de clave foránea user_id en pedidos. Reintentando sin user_id...");
+        delete pedidoAInsertar.user_id;
+        const reintentoUser = await supabase
+          .from("pedidos")
+          .insert([pedidoAInsertar])
+          .select();
+        data = reintentoUser.data;
+        error = reintentoUser.error;
+      }
+
+      // Si falla porque la columna direccion_envio aún no fue creada en la tabla de Supabase:
+      if (error && (error.message?.includes("direccion_envio") || error.code === "PGRST204")) {
+        console.warn("Columna direccion_envio no disponible en Supabase. Guardando dirección en nota_staff como respaldo.");
+        delete pedidoAInsertar.direccion_envio;
+        if (direccionEnvio) {
+          const dirTexto = `[Dirección de entrega]: ${direccionEnvio.calle || ""} ${direccionEnvio.altura || ""}${direccionEnvio.piso ? ` (Piso/Dpto: ${direccionEnvio.piso})` : ""}, ${direccionEnvio.localidad || ""}, ${direccionEnvio.provincia || ""} (CP: ${direccionEnvio.codigoPostal || ""})${direccionEnvio.indicaciones ? ` - Ref: ${direccionEnvio.indicaciones}` : ""}`;
+          pedidoAInsertar.nota_staff = dirTexto;
+        }
+        const reintento = await supabase
+          .from("pedidos")
+          .insert([pedidoAInsertar])
+          .select();
+        data = reintento.data;
+        error = reintento.error;
+      }
+
       if (error) {
         console.error("Error creating order:", error);
-        setErrorForm("No pudimos registrar tu solicitud. Intentalo de nuevo.");
+        setErrorForm(`No pudimos registrar tu solicitud: ${error.message || "Error en la base de datos"}. Intentalo de nuevo.`);
       } else {
         const nuevoId = data && data[0] ? data[0].id : Math.floor(1000 + Math.random() * 9000);
         setPedidoId(nuevoId);
@@ -162,7 +202,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
   function handleConfirmarPedido() {
     if (user) {
-      procesarCompra(user.nombre, user.email, "", direccion, user.id);
+      procesarCompra(user.nombre, user.email, usuarioTelefono, direccion, user.id);
     } else {
       procesarCompra(invitadoNombre, invitadoEmail, invitadoTelefono, direccion, null);
     }
@@ -183,10 +223,11 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     setMostrarResumen(false);
     setMetodoEntrega(null);
     setDireccion(null);
-    setFormaPago("");
+    setFormaPago(formasPagoConfig.length > 0 ? formasPagoConfig[0] : "Efectivo");
     setInvitadoNombre("");
     setInvitadoEmail("");
     setInvitadoTelefono("");
+    setUsuarioTelefono("");
     setErrorForm("");
     onClose();
   }
@@ -326,6 +367,29 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                 </div>
               )}
 
+              {/* Datos de contacto para usuario logueado */}
+              {user && (
+                <div className="bg-gray-50 border border-black/5 rounded-xl p-3 text-xs">
+                  <div className="font-bold text-gray-900 mb-1 flex items-center gap-1">👤 Datos de contacto</div>
+                  <p className="text-gray-700 font-medium">{user.nombre} ({user.email})</p>
+                  <div className="mt-2">
+                    <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                      Teléfono / WhatsApp de contacto:
+                    </label>
+                    <input
+                      type="tel"
+                      style={inputStyle}
+                      value={usuarioTelefono}
+                      onChange={(e) => setUsuarioTelefono(e.target.value)}
+                      placeholder="Ej. +54 342 5128458"
+                    />
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      Te contactaremos a este número para confirmar el stock y coordinar el pago.
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Desglose de totales */}
               <div className="border-t border-dashed border-black/10 pt-3 text-xs flex flex-col gap-1.5">
                 <div className="flex justify-between text-gray-500">
@@ -420,6 +484,12 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
               {errorForm && (
                 <div className="bg-red-50 text-red-600 border border-red-100 text-xs px-3 py-2.5 rounded-lg">
                   ❌ {errorForm}
+                </div>
+              )}
+
+              {!direccion && (
+                <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-center">
+                  ⚠️ Por favor completá tu dirección y presioná <strong>&quot;Verificar dirección&quot;</strong> para continuar.
                 </div>
               )}
 
