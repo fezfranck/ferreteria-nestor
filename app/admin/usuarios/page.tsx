@@ -27,8 +27,13 @@ const vacío = {
 };
 
 async function obtenerToken() {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) return undefined;
+    return data.session?.access_token;
+  } catch {
+    return undefined;
+  }
 }
 
 export default function AdminUsuarios() {

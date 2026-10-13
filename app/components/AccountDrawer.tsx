@@ -171,8 +171,12 @@ export default function AccountDrawer({ isOpen, onClose }: Props) {
               )}
 
               <button
-                onClick={() => { logout(); onClose(); }}
-                className="w-full py-3 rounded-xl font-bold text-sm transition-all"
+                onClick={async () => {
+                  await logout();
+                  onClose();
+                  window.location.href = "/";
+                }}
+                className="w-full py-3 rounded-xl font-bold text-sm transition-all cursor-pointer"
                 style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}
               >
                 🚪 Cerrar sesión

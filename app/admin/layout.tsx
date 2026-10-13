@@ -11,12 +11,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!loading) {
       if (!user && pathname !== "/admin") {
-        router.push("/admin");
+        window.location.href = "/admin";
       } else if (user && user.rol === "comprador") {
-        router.push("/cuenta/pedidos");
+        window.location.href = "/cuenta/pedidos";
       }
     }
-  }, [user, loading, pathname, router]);
+  }, [user, loading, pathname]);
 
   // En la página de login no mostramos el sidebar
   if (pathname === "/admin") {
@@ -37,10 +37,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Si el usuario es comprador, no tiene acceso a ninguna ruta de /admin
   if (user && user.rol === "comprador") {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#1A1A1A] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-4xl animate-pulse">⛔</div>
+          <p className="text-sm text-gray-400 font-medium">Acceso restringido. Redirigiendo a tu cuenta...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#1A1A1A] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-4xl animate-pulse">🔒</div>
+          <p className="text-sm text-gray-400 font-medium">Sesión expirada o no iniciada. Redirigiendo al login...</p>
+        </div>
+      </div>
+    );
+  }
 
  const navItems = [
   { icon: "📊", label: "Dashboard", href: "/admin/dashboard", roles: ["superadmin", "admin", "vendedor"] },
@@ -108,8 +124,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logout */}
         <div className="px-3 py-4" style={{ borderTop: "1px solid #333" }}>
           <button
-            onClick={() => { logout(); router.push("/admin"); }}
-            className="w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all"
+            onClick={async () => {
+              await logout();
+              window.location.href = "/admin";
+            }}
+            className="w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer"
             style={{ background: "rgba(220,38,38,0.15)", color: "#f87171" }}
           >
             🚪 Cerrar sesión

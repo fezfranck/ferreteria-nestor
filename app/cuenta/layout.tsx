@@ -11,18 +11,36 @@ const navTabs = [
 ];
 
 export default function CuentaLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!user) {
-      router.push("/");
+    if (!loading && !user) {
+      window.location.href = "/";
     }
-  }, [user, router]);
+  }, [user, loading]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] text-gray-700">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-4xl animate-pulse">⚡</div>
+          <p className="text-sm text-gray-500 font-medium">Cargando cuenta...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] text-gray-700">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-4xl animate-pulse">🔒</div>
+          <p className="text-sm text-gray-500 font-medium">Sesión no iniciada o vencida. Redirigiendo...</p>
+        </div>
+      </div>
+    );
   }
 
   const roleColors: Record<string, string> = {
