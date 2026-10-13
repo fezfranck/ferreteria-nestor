@@ -57,7 +57,7 @@ export default function AdminPedidos() {
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [mensaje, setMensaje] = useState<{ tipo: "success" | "error"; texto: string } | null>(null);
-  const [estadoFiltro, setEstadoFiltro] = useState("all");
+  const [estadoFiltro, setEstadoFiltro] = useState<string>(ESTADOS_PEDIDO.PENDIENTE_REVISION);
   const [pedidoDetalle, setPedidoDetalle] = useState<Pedido | null>(null);
 
   // Información de stock para el pedido seleccionado
@@ -76,17 +76,55 @@ export default function AdminPedidos() {
   // Cargar pedidos
   async function fetchPedidos() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("pedidos")
-      .select("*")
-      .order("id", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("pedidos")
+        .select("*")
+        .order("id", { ascending: false });
 
-    if (!error && data) {
-      setPedidos(data as Pedido[]);
-    } else {
-      console.error("Error fetching orders:", error);
+      if (!error && data) {
+        const list = data as Pedido[];
+        setPedidos(list);
+
+        // Detectar si hay filtro en URL
+        let filtroDeseado: string = ESTADOS_PEDIDO.PENDIENTE_REVISION;
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const f = params.get("filtro") || params.get("estado");
+          if (f) {
+            if (f.toLowerCase().includes("pendiente")) {
+              filtroDeseado = ESTADOS_PEDIDO.PENDIENTE_REVISION;
+            } else if (f === "all") {
+              filtroDeseado = "all";
+            } else {
+              filtroDeseado = f;
+            }
+          } else {
+            // Si no hay parámetro y no hay pedidos pendientes, mostrar todos
+            const hayPendientes = list.some((p) => p.estado === ESTADOS_PEDIDO.PENDIENTE_REVISION);
+            if (!hayPendientes) {
+              filtroDeseado = "all";
+            }
+          }
+        }
+
+        setEstadoFiltro(filtroDeseado);
+
+        // Autoseleccionar primer pedido pendiente de revisión para inspeccionar de inmediato
+        const pendientes = list.filter((p) => p.estado === ESTADOS_PEDIDO.PENDIENTE_REVISION);
+        if (pendientes.length > 0) {
+          setPedidoDetalle(pendientes[0]);
+        } else if (list.length > 0) {
+          setPedidoDetalle(list[0]);
+        }
+      } else if (error) {
+        console.error("Error fetching orders:", error);
+      }
+    } catch (err) {
+      console.error("Connection error loading orders:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   // Helper para parsear items de forma segura
@@ -307,11 +345,13 @@ export default function AdminPedidos() {
 
   // Filtrado de pedidos
   const filtrados = pedidos.filter((p) => {
+    const busq = busqueda.trim().toLowerCase();
     const coincideBusqueda =
-      p.cliente_nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
-      p.cliente_email?.toLowerCase().includes(busqueda.toLowerCase()) ||
-      (p.cliente_telefono && p.cliente_telefono.includes(busqueda)) ||
-      p.id.toString().includes(busqueda);
+      !busq ||
+      (p.cliente_nombre?.toLowerCase() || "").includes(busq) ||
+      (p.cliente_email?.toLowerCase() || "").includes(busq) ||
+      (p.cliente_telefono || "").includes(busq) ||
+      String(p.id ?? "").includes(busq);
 
     const coincideEstado = estadoFiltro === "all" || p.estado === estadoFiltro;
 
@@ -468,14 +508,39 @@ export default function AdminPedidos() {
                   </tr>
                 ) : filtrados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-gray-400">
-                      No se encontraron pedidos con el criterio seleccionado.
+                    <td colSpan={6} className="px-5 py-12 text-center text-gray-500">
+                      {estadoFiltro === ESTADOS_PEDIDO.PENDIENTE_REVISION && pedidos.length > 0 ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="text-3xl">🎉</div>
+                          <p className="font-bold text-gray-800 text-sm">¡Al día! No hay pedidos pendientes de revisión.</p>
+                          <p className="text-xs text-gray-400">Todos los pedidos recibidos ya han sido revisados o gestionados.</p>
+                          <button
+                            onClick={() => setEstadoFiltro("all")}
+                            className="mt-3 px-4 py-2 rounded-full border border-[#1B87C8] text-[#1B87C8] text-xs font-bold hover:bg-[#1B87C8]/10 transition-colors"
+                          >
+                            Ver todos los pedidos ({pedidos.length}) →
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="text-2xl mb-1">🔍</div>
+                          <p className="font-semibold text-gray-700 text-sm">No se encontraron pedidos con el criterio seleccionado.</p>
+                          {estadoFiltro !== "all" && (
+                            <button
+                              onClick={() => setEstadoFiltro("all")}
+                              className="text-xs text-[#1B87C8] hover:underline mt-2 font-medium"
+                            >
+                              Ver todos los pedidos ({pedidos.length})
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ) : (
                   filtrados.map((p) => {
-                    const cfg = ESTADOS_CONFIG[p.estado] || {
-                      label: p.estado,
+                    const cfg = (p.estado && ESTADOS_CONFIG[p.estado]) || {
+                      label: p.estado || "Desconocido",
                       color: "#64748B",
                       bg: "rgba(100,116,139,0.1)",
                       icon: "📋",

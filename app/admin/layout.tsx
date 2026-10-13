@@ -4,26 +4,40 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!user && pathname !== "/admin") {
-      router.push("/admin");
-    } else if (user && user.rol === "comprador") {
-      router.push("/cuenta/pedidos");
+    if (!loading) {
+      if (!user && pathname !== "/admin") {
+        router.push("/admin");
+      } else if (user && user.rol === "comprador") {
+        router.push("/cuenta/pedidos");
+      }
     }
-  }, [user, pathname, router]);
-
-  // Si el usuario es comprador, no tiene acceso a ninguna ruta de /admin
-  if (user && user.rol === "comprador") {
-    return null;
-  }
+  }, [user, loading, pathname, router]);
 
   // En la página de login no mostramos el sidebar
   if (pathname === "/admin") {
     return <>{children}</>;
+  }
+
+  // Si está verificando la sesión, mostrar indicador en vez de pantalla en blanco
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#1A1A1A] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="text-4xl animate-pulse">⚡</div>
+          <p className="text-sm text-gray-400 font-medium">Cargando panel de administración...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si el usuario es comprador, no tiene acceso a ninguna ruta de /admin
+  if (user && user.rol === "comprador") {
+    return null;
   }
 
   if (!user) return null;

@@ -57,6 +57,7 @@ export default function Dashboard() {
   // Estados para vista Staff (admin, superadmin, vendedor)
   const [totalProductos, setTotalProductos] = useState(0);
   const [totalPedidos, setTotalPedidos] = useState(0);
+  const [pedidosPendientes, setPedidosPendientes] = useState(0);
 
   // Estados para vista Comprador
   const [misPedidos, setMisPedidos] = useState<PedidoComprador[]>([]);
@@ -67,14 +68,24 @@ export default function Dashboard() {
     if (!user || user.rol === "comprador") return;
 
     async function fetchStats() {
-      const { count: cp } = await supabase
-        .from("productos")
-        .select("*", { count: "exact", head: true });
-      const { count: co } = await supabase
-        .from("pedidos")
-        .select("*", { count: "exact", head: true });
-      setTotalProductos(cp || 0);
-      setTotalPedidos(co || 0);
+      try {
+        const { count: cp } = await supabase
+          .from("productos")
+          .select("*", { count: "exact", head: true });
+        const { count: co } = await supabase
+          .from("pedidos")
+          .select("*", { count: "exact", head: true });
+        const { count: cPend } = await supabase
+          .from("pedidos")
+          .select("*", { count: "exact", head: true })
+          .eq("estado", "Pendiente de revisión");
+
+        setTotalProductos(cp || 0);
+        setTotalPedidos(co || 0);
+        setPedidosPendientes(cPend || 0);
+      } catch (err) {
+        console.error("Error cargando estadísticas del dashboard:", err);
+      }
     }
     fetchStats();
   }, [user]);
@@ -346,10 +357,10 @@ export default function Dashboard() {
   // VISTA PARA STAFF (SUPERADMIN, ADMIN, VENDEDOR) - INTACTA
   // -------------------------------------------------------------
   const stats = [
-    { icon: "📦", label: "Productos activos", value: totalProductos, color: "#1B87C8" },
-    { icon: "🛒", label: "Pedidos totales", value: totalPedidos, color: "#38A169" },
-    { icon: "👥", label: "Usuarios", value: 3, color: "#805AD5" },
-    { icon: "💰", label: "Ventas del mes", value: "$0", color: "#D69E2E" },
+    { icon: "📦", label: "Productos activos", value: totalProductos, color: "#1B87C8", href: "/admin/productos" },
+    { icon: "⏳", label: "Pendientes revisión", value: pedidosPendientes, color: "#F5A623", href: "/admin/pedidos?filtro=pendiente" },
+    { icon: "🛒", label: "Pedidos totales", value: totalPedidos, color: "#38A169", href: "/admin/pedidos?filtro=all" },
+    { icon: "👥", label: "Usuarios", value: 4, color: "#805AD5", href: "/admin/usuarios" },
   ];
 
   const actividad = [
@@ -362,22 +373,51 @@ export default function Dashboard() {
   return (
     <div>
       {/* Bienvenida */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1
           className="font-black uppercase text-4xl leading-none mb-1"
           style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
         >
           Bienvenido, <span style={{ color: "#1B87C8" }}>{user?.nombre}</span>
         </h1>
-        <p style={{ color: "#555" }}>Resumen del sistema al día de hoy</p>
+        <p style={{ color: "#555" }}>Resumen del sistema y gestión de ventas al día de hoy</p>
       </div>
+
+      {/* Alerta de pedidos pendientes de revisión para administrar ventas */}
+      {pedidosPendientes > 0 && (
+        <Link
+          href="/admin/pedidos?filtro=pendiente"
+          className="mb-8 bg-amber-50 border-2 border-amber-300 hover:border-amber-400 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-sm hover:shadow-md cursor-pointer group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-2xl flex-shrink-0 animate-pulse">
+              ⏳
+            </div>
+            <div>
+              <div className="text-xs font-black uppercase tracking-wider text-amber-800">
+                Atención Requerida · Ventas por coordinar
+              </div>
+              <div className="text-xl font-black text-amber-950 mt-0.5" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                {pedidosPendientes} {pedidosPendientes === 1 ? "solicitud pendiente" : "solicitudes pendientes"} de revisión
+              </div>
+              <p className="text-xs text-amber-800/80 mt-0.5">
+                Hay solicitudes de clientes esperando confirmación de stock y aprobación para concretar la venta.
+              </p>
+            </div>
+          </div>
+          <span className="self-start sm:self-auto px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-xs flex items-center gap-2">
+            Revisar y Administrar →
+          </span>
+        </Link>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
         {stats.map((s) => (
-          <div
+          <Link
             key={s.label}
-            className="bg-white rounded-xl p-6"
+            href={s.href}
+            className="bg-white rounded-xl p-6 transition-all hover:scale-[1.02] hover:shadow-xs block"
             style={{ border: "1.5px solid rgba(0,0,0,0.08)" }}
           >
             <div className="text-3xl mb-3">{s.icon}</div>
@@ -387,8 +427,8 @@ export default function Dashboard() {
             >
               {s.value}
             </div>
-            <div className="text-sm" style={{ color: "#555" }}>{s.label}</div>
-          </div>
+            <div className="text-sm font-medium" style={{ color: "#555" }}>{s.label}</div>
+          </Link>
         ))}
       </div>
 
@@ -432,22 +472,55 @@ export default function Dashboard() {
           </div>
           <div className="p-6 grid grid-cols-2 gap-4">
             {[
-              { icon: "📦", label: "Nuevo producto", href: "/admin/productos", color: "#1B87C8" },
-              { icon: "🛒", label: "Ver pedidos", href: "/admin/pedidos", color: "#38A169" },
-              { icon: "👥", label: "Usuarios", href: "/admin/usuarios", color: "#805AD5" },
-              { icon: "🌐", label: "Ver tienda", href: "/", color: "#D69E2E" },
+              {
+                icon: "⏳",
+                label: pedidosPendientes > 0 ? `Revisar ventas (${pedidosPendientes})` : "Revisar ventas",
+                desc: "Solicitudes pendientes",
+                href: "/admin/pedidos?filtro=pendiente",
+                color: "#F5A623",
+                badge: pedidosPendientes > 0 ? `${pedidosPendientes} nuevas` : null,
+              },
+              {
+                icon: "🛒",
+                label: "Todos los pedidos",
+                desc: "Historial completo",
+                href: "/admin/pedidos?filtro=all",
+                color: "#38A169",
+              },
+              {
+                icon: "📦",
+                label: "Nuevo producto",
+                desc: "Catálogo",
+                href: "/admin/productos",
+                color: "#1B87C8",
+              },
+              {
+                icon: "🌐",
+                label: "Ver tienda",
+                desc: "Sitio web",
+                href: "/",
+                color: "#D69E2E",
+              },
             ].map((a) => (
-              <a
+              <Link
                 key={a.label}
                 href={a.href}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl p-5 text-center transition-all"
-                style={{ background: `${a.color}10`, border: `1.5px solid ${a.color}20` }}
+                className="relative flex flex-col items-center justify-center gap-2 rounded-xl p-5 text-center transition-all hover:scale-[1.02] hover:shadow-xs"
+                style={{ background: `${a.color}10`, border: `1.5px solid ${a.color}25` }}
               >
+                {a.badge && (
+                  <span className="absolute top-2 right-2 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+                    {a.badge}
+                  </span>
+                )}
                 <span className="text-3xl">{a.icon}</span>
-                <span className="text-xs font-bold uppercase" style={{ color: a.color }}>
-                  {a.label}
-                </span>
-              </a>
+                <div>
+                  <span className="text-xs font-bold uppercase block" style={{ color: a.color }}>
+                    {a.label}
+                  </span>
+                  {a.desc && <span className="text-[10px] text-gray-400 block">{a.desc}</span>}
+                </div>
+              </Link>
             ))}
           </div>
         </div>
