@@ -4,29 +4,38 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { useConfig } from "../context/ConfigContext";
 import CartDrawer from "./CartDrawer";
 import AccountDrawer from "./AccountDrawer";
 
 export default function Navbar() {
   const { count } = useCart();
   const { user } = useAuth();
+  const { config } = useConfig();
   const [cartOpen, setCartOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [busquedaMobileOpen, setBusquedaMobileOpen] = useState(false);
+
+  const cleanTel = (config.telefono || "").replace(/[^\d+]/g, "");
+  const textoHorarios = config.horarios
+    ? `${config.horarios.dias_semana || "Lun–Vie 8:00–18:00"} | ${config.horarios.sabados || "Sáb 8:00–13:00"}`
+    : "Lun–Vie 8:00–18:00 | Sáb 8:00–13:00";
 
   return (
     <>
       {/* TOPBAR */}
       <div className="bg-[#1A1A1A] text-[#aaa] text-xs py-2 px-4 sm:px-6 border-b border-[#333]">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <span className="hidden md:inline">📍 Ignacio Crespo 1136, Recreo — Santa Fe</span>
-          <a href="tel:+543425128458" className="md:hidden font-semibold text-white">
-            ☎️ (0342) 5128458
+          <span className="hidden md:inline">📍 {config.direccion || "Ignacio Crespo 1136, Recreo — Santa Fe"}</span>
+          <a href={`tel:${cleanTel}`} className="md:hidden font-semibold text-white">
+            ☎️ {config.telefono || "(0342) 5128458"}
           </a>
           <div className="hidden md:flex gap-4">
-            <span>☎️ (0342) 5128458</span>
-            <span>🕐 Lun–Vie 8:00–18:00 | Sáb 8:00–13:00</span>
+            <a href={`tel:${cleanTel}`} className="hover:text-white transition-colors">
+              ☎️ {config.telefono || "(0342) 5128458"}
+            </a>
+            <span>🕐 {textoHorarios}</span>
           </div>
         </div>
       </div>
@@ -283,8 +292,10 @@ export default function Navbar() {
 
         {/* Footer del Drawer */}
         <div className="p-6 border-t border-black/8 bg-[#fdfdfd] text-xs text-gray-400 flex flex-col gap-2 flex-shrink-0">
-          <a href="tel:+543425128458">📞 (0342) 5128458</a>
-          <span>📍 Ignacio Crespo 1136, Recreo</span>
+          <a href={`tel:${cleanTel}`} className="hover:text-black transition-colors font-medium">
+            📞 {config.telefono || "(0342) 5128458"}
+          </a>
+          <span>📍 {config.direccion || "Ignacio Crespo 1136, Recreo"}</span>
         </div>
       </div>
 

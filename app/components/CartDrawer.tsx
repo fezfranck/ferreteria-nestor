@@ -2,8 +2,10 @@
 import { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import { useConfig } from "../context/ConfigContext";
 import { supabase } from "../lib/supabase";
 import { ESTADOS_PEDIDO } from "../lib/constants";
+import { validarTelefonoArgentino } from "../lib/whatsapp";
 import AddressForm, { Direccion } from "./AddressForm";
 
 interface Props {
@@ -11,21 +13,22 @@ interface Props {
   onClose: () => void;
 }
 
-const DIRECCION_LOCAL: Direccion = {
-  provincia: "Santa Fe",
-  localidad: "Recreo",
-  calle: "Ignacio Crespo",
-  altura: "1136",
-  piso: "",
-  indicaciones: "Retiro en el local",
-  codigoPostal: "3018",
-  lat: null,
-  lon: null
-};
-
 export default function CartDrawer({ isOpen, onClose }: Props) {
   const { items, addItem, removeItem, decrementItem, total, count, clearCart } = useCart();
   const { user } = useAuth();
+  const { config } = useConfig();
+
+  const DIRECCION_LOCAL: Direccion = {
+    provincia: "Santa Fe",
+    localidad: "Recreo",
+    calle: config.direccion ? config.direccion.split(",")[0] : "Ignacio Crespo 1136",
+    altura: "",
+    piso: "",
+    indicaciones: "Retiro en el local",
+    codigoPostal: "3018",
+    lat: null,
+    lon: null,
+  };
 
   // Estados de checkout
   const [comprando, setComprando] = useState(false);
@@ -46,45 +49,19 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const [mostrarFormDireccion, setMostrarFormDireccion] = useState(false);
   const [direccion, setDireccion] = useState<Direccion | null>(null);
 
-  // Nuevos estados para método de entrega, resumen y pagos
-  const [costoEnvioConfig, setCostoEnvioConfig] = useState<number>(0);
-  const [formasPagoConfig, setFormasPagoConfig] = useState<string[]>(["Efectivo", "Transferencia bancaria"]);
+  // Estados para método de entrega, resumen y pagos
+  const costoEnvioConfig = config.costo_envio ?? 0;
+  const formasPagoConfig = config.formas_pago && config.formas_pago.length > 0 ? config.formas_pago : ["Efectivo", "Transferencia bancaria"];
   const [mostrarMetodoEntrega, setMostrarMetodoEntrega] = useState(false);
   const [metodoEntrega, setMetodoEntrega] = useState<"domicilio" | "retiro" | null>(null);
   const [mostrarResumen, setMostrarResumen] = useState(false);
   const [formaPago, setFormaPago] = useState<string>("Efectivo");
 
   useEffect(() => {
-    async function fetchConfig() {
-      try {
-        const { data, error } = await supabase
-          .from("configuracion")
-          .select("costo_envio, formas_pago")
-          .eq("id", 1)
-          .single();
-        if (!error && data) {
-          setCostoEnvioConfig(Number(data.costo_envio) || 0);
-          const pagos = Array.isArray(data.formas_pago) && data.formas_pago.length > 0
-            ? data.formas_pago
-            : ["Efectivo", "Transferencia bancaria"];
-          setFormasPagoConfig(pagos);
-          setFormaPago((prev) => (prev && pagos.includes(prev) ? prev : pagos[0]));
-        } else {
-          setCostoEnvioConfig(0);
-          setFormasPagoConfig(["Efectivo", "Transferencia bancaria"]);
-          setFormaPago((prev) => prev || "Efectivo");
-        }
-      } catch (err) {
-        console.error("Error cargando configuracion de envío:", err);
-        setCostoEnvioConfig(0);
-        setFormasPagoConfig(["Efectivo", "Transferencia bancaria"]);
-        setFormaPago((prev) => prev || "Efectivo");
-      }
+    if (formasPagoConfig.length > 0 && !formasPagoConfig.includes(formaPago)) {
+      setFormaPago(formasPagoConfig[0]);
     }
-    if (isOpen) {
-      fetchConfig();
-    }
-  }, [isOpen]);
+  }, [formasPagoConfig, formaPago]);
 
   async function procesarCompra(nombre: string, email: string, telefono: string, direccionEnvio: Direccion | null, userId: string | null = null) {
     setComprando(true);
@@ -188,10 +165,16 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   function handleFormInvitadoSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!invitadoNombre.trim() || !invitadoEmail.trim()) {
-      setErrorForm("Por favor completa los campos requeridos.");
+      setErrorForm("Por favor completa los campos de nombre y correo.");
+      return;
+    }
+    const valTel = validarTelefonoArgentino(invitadoTelefono);
+    if (!valTel.valido) {
+      setErrorForm(valTel.error || "El celular es obligatorio.");
       return;
     }
     setErrorForm("");
+    setInvitadoTelefono(valTel.limpio || invitadoTelefono.trim());
     setMostrarFormInvitado(false);
     setMostrarMetodoEntrega(true);
   }
@@ -202,9 +185,19 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
   function handleConfirmarPedido() {
     if (user) {
-      procesarCompra(user.nombre, user.email, usuarioTelefono, direccion, user.id);
+      const valTel = validarTelefonoArgentino(usuarioTelefono);
+      if (!valTel.valido) {
+        setErrorForm(valTel.error || "El celular es obligatorio.");
+        return;
+      }
+      procesarCompra(user.nombre, user.email, valTel.limpio || usuarioTelefono.trim(), direccion, user.id);
     } else {
-      procesarCompra(invitadoNombre, invitadoEmail, invitadoTelefono, direccion, null);
+      const valTel = validarTelefonoArgentino(invitadoTelefono);
+      if (!valTel.valido) {
+        setErrorForm(valTel.error || "El celular es obligatorio.");
+        return;
+      }
+      procesarCompra(invitadoNombre, invitadoEmail, valTel.limpio || invitadoTelefono.trim(), direccion, null);
     }
   }
 
@@ -373,18 +366,19 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                   <div className="font-bold text-gray-900 mb-1 flex items-center gap-1">👤 Datos de contacto</div>
                   <p className="text-gray-700 font-medium">{user.nombre} ({user.email})</p>
                   <div className="mt-2">
-                    <label className="block text-[11px] font-bold text-gray-600 mb-1">
-                      Teléfono / WhatsApp de contacto:
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                      Celular / WhatsApp (Obligatorio) *
                     </label>
                     <input
                       type="tel"
                       style={inputStyle}
                       value={usuarioTelefono}
-                      onChange={(e) => setUsuarioTelefono(e.target.value)}
-                      placeholder="Ej. +54 342 5128458"
+                      onChange={(e) => setUsuarioTelefono(e.target.value.replace(/[^\d\s\-\(\)\+]/g, ""))}
+                      placeholder="Ej: 3425128458 (10 dígitos, sin 0 ni 15)"
+                      required
                     />
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">
-                      Te contactaremos a este número para confirmar el stock y coordinar el pago.
+                    <span className="text-[10px] text-gray-500 mt-1 block">
+                      💡 Ingresá código de área sin el 0 y número directo sin el 15. Te contactaremos por WhatsApp.
                     </span>
                   </div>
                 </div>
@@ -627,14 +621,20 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">Teléfono (WhatsApp)</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                    Celular / WhatsApp *
+                  </label>
                   <input
                     type="tel"
+                    required
                     style={inputStyle}
                     value={invitadoTelefono}
-                    onChange={e => setInvitadoTelefono(e.target.value)}
-                    placeholder="Ej. +54 342 5128458"
+                    onChange={e => setInvitadoTelefono(e.target.value.replace(/[^\d\s\-\(\)\+]/g, ""))}
+                    placeholder="Ej: 3425128458 (10 dígitos, sin 0 ni 15)"
                   />
+                  <span className="text-[10px] text-gray-500 mt-1 block">
+                    💡 Ingresá código de área sin el 0 y número directo sin el 15. Te contactaremos por WhatsApp.
+                  </span>
                 </div>
 
                 <div className="flex gap-3 mt-2">

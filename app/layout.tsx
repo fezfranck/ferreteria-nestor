@@ -5,6 +5,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { CartProvider } from "./context/CartContext";
 import { AuthProvider } from "./context/AuthContext";
+import { ConfigProvider } from "./context/ConfigContext";
 
 const barlow = Barlow({
   subsets: ["latin"],
@@ -34,11 +35,13 @@ export default function RootLayout({
     <html lang="es" className={`${barlow.variable} ${barlowCondensed.variable}`}>
       <body>
         <AuthProvider>
-          <CartProvider>
-            <Navbar />
-            {children}
-            <Footer />
-          </CartProvider>
+          <ConfigProvider>
+            <CartProvider>
+              <Navbar />
+              {children}
+              <Footer />
+            </CartProvider>
+          </ConfigProvider>
         </AuthProvider>
       </body>
     </html>

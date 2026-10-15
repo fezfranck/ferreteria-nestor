@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useCart } from "../context/CartContext";
 import { supabase } from "../lib/supabase";
+import ProductDetailModal from "../components/ProductDetailModal";
 
 interface Producto {
   id: string;
@@ -40,6 +41,7 @@ export default function Productos() {
   const [categoriaActiva, setCategoriaActiva] = useState(0);
   const [busqueda, setBusqueda] = useState("");
   const [orden, setOrden] = useState("default");
+  const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -185,6 +187,7 @@ export default function Productos() {
               {productosFiltrados.map((p) => (
                 <div
                   key={p.id}
+                  onClick={() => setProductoSeleccionado(p)}
                   className="bg-white border border-black/8 rounded-xl overflow-hidden hover:border-[#1B87C8] hover:-translate-y-1 hover:shadow-lg transition-all cursor-pointer relative"
                 >
                   {p.badge && (
@@ -207,14 +210,17 @@ export default function Productos() {
                     <div className="text-xs text-gray-400 mb-3">SKU: {p.sku}</div>
                     <div className="text-xl font-bold mb-3">${p.precio.toLocaleString("es-AR")}</div>
                     <button
-                      onClick={() => addItem({
-                        id: p.sku,
-                        name: p.nombre,
-                        price: p.precio,
-                        brand: p.marca,
-                        icon: p.icono,
-                      })}
-                      className="w-full bg-[#1B87C8] hover:bg-[#1569A0] text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addItem({
+                          id: p.sku,
+                          name: p.nombre,
+                          price: p.precio,
+                          brand: p.marca,
+                          icon: p.icono,
+                        });
+                      }}
+                      className="w-full bg-[#1B87C8] hover:bg-[#1569A0] text-white text-sm font-semibold py-2 rounded-lg transition-colors cursor-pointer"
                     >
                       🛒 Agregar
                     </button>
@@ -225,6 +231,13 @@ export default function Productos() {
           )}
         </div>
       </section>
+
+      {/* Modal de detalle de producto */}
+      <ProductDetailModal
+        producto={productoSeleccionado}
+        isOpen={!!productoSeleccionado}
+        onClose={() => setProductoSeleccionado(null)}
+      />
     </main>
   );
 }

@@ -1,14 +1,40 @@
 "use client";
 import { useState } from "react";
+import { useConfig } from "../context/ConfigContext";
+import { normalizarTelefonoArgentino } from "../lib/whatsapp";
 
 export default function Contacto() {
   const [enviado, setEnviado] = useState(false);
+  const { config } = useConfig();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setEnviado(true);
     setTimeout(() => setEnviado(false), 4000);
   }
+
+  const numWhatsApp = normalizarTelefonoArgentino(config.whatsapp_contacto || config.telefono) || "5493425128458";
+  const horarioLineas = [
+    config.horarios?.dias_semana || "Lunes a Viernes 8:00-18:00",
+    config.horarios?.sabados || "Sábados 8:00-13:00",
+  ];
+  if (config.horarios?.domingos && config.horarios.domingos !== "Cerrado") {
+    horarioLineas.push(`Domingos: ${config.horarios.domingos}`);
+  }
+
+  const itemsInfo = [
+    { icon: "📍", title: "Direccion", lines: [config.direccion || "Ignacio Crespo 1136, Recreo - Santa Fe", "Argentina"] },
+    {
+      icon: "📞",
+      title: "Telefonos",
+      lines: [
+        config.telefono || "(0342) 5128458",
+        config.whatsapp_contacto ? `${config.whatsapp_contacto} WhatsApp` : "(0342) 5128458 WhatsApp",
+      ],
+    },
+    { icon: "📧", title: "Email", lines: [config.email_contacto || "electricidadnestorrecreo@gmail.com"] },
+    { icon: "🕐", title: "Horario", lines: horarioLineas },
+  ];
 
   return (
     <main>
@@ -53,12 +79,7 @@ export default function Contacto() {
             </p>
 
             <div className="flex flex-col gap-6">
-              {[
-                { icon: "📍", title: "Direccion", lines: ["Ignacio Crespo 1136, Recreo - Santa Fe", "Argentina"] },
-                { icon: "📞", title: "Telefonos", lines: ["(0342) 5128458", "(0342) 5128458 WhatsApp"] },
-                { icon: "📧", title: "Email", lines: ["electricidadnestorrecreo@gmail.com"] },
-                { icon: "🕐", title: "Horario", lines: ["Lunes a Viernes 8:00-18:00", "Sabados 8:00-13:00"] },
-              ].map((item) => (
+              {itemsInfo.map((item) => (
                 <div key={item.title} className="flex items-start gap-4">
                   <div
                     className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
@@ -81,13 +102,13 @@ export default function Contacto() {
               ))}
             </div>
             <a
-              href="https://wa.me/5403425128458"
+              href={`https://wa.me/${numWhatsApp}?text=${encodeURIComponent("Hola! Me contacto desde la página web de Electricidad Néstor.")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 font-semibold px-6 py-3 rounded mt-8 transition-all"
+              className="inline-flex items-center gap-3 font-semibold px-6 py-3 rounded mt-8 transition-all hover:brightness-105"
               style={{ background: "#25D366", color: "white" }}
-              >
-              Escribinos por WhatsApp
+            >
+              <span>💬</span> Escribinos por WhatsApp
             </a>
           </div>
 

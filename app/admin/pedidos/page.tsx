@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
+import { obtenerEnlaceWhatsApp } from "../../lib/whatsapp";
 import {
   ESTADOS_PEDIDO,
   ESTADOS_CONFIG,
@@ -53,6 +55,8 @@ interface StockInfo {
 }
 
 export default function AdminPedidos() {
+  const { user } = useAuth();
+  const esStaff = user && ["superadmin", "admin", "vendedor"].includes(user.rol);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
@@ -601,7 +605,28 @@ export default function AdminPedidos() {
                           </span>
                         </td>
                         <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex gap-2">
+                          <div className="flex items-center gap-2">
+                            {esStaff && (() => {
+                              const enlaceWa = obtenerEnlaceWhatsApp(p.cliente_telefono, p);
+                              return enlaceWa ? (
+                                <a
+                                  href={enlaceWa}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1 rounded text-xs font-bold transition-all text-emerald-600 hover:bg-emerald-50 border border-emerald-500/30 flex items-center"
+                                  title="Contactar por WhatsApp"
+                                >
+                                  💬
+                                </a>
+                              ) : (
+                                <span
+                                  className="px-2.5 py-1 rounded text-xs text-gray-300 border border-gray-200 cursor-not-allowed select-none"
+                                  title="Sin teléfono válido para WhatsApp"
+                                >
+                                  💬
+                                </span>
+                              );
+                            })()}
                             <button
                               onClick={() => setPedidoDetalle(p)}
                               className="px-3 py-1 rounded text-xs font-bold transition-all text-[#1B87C8] hover:bg-[#1B87C815]"
@@ -758,6 +783,30 @@ export default function AdminPedidos() {
                       <span className="text-gray-400 italic">No proporcionó teléfono</span>
                     )}
                   </div>
+
+                  {esStaff && (() => {
+                    const enlaceWa = obtenerEnlaceWhatsApp(pedidoDetalle.cliente_telefono, pedidoDetalle);
+                    return enlaceWa ? (
+                      <a
+                        href={enlaceWa}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2.5 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#25D366] hover:bg-[#20ba59] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                      >
+                        <span>💬</span> Contactar por WhatsApp
+                      </a>
+                    ) : (
+                      <div className="mt-2 pt-2 border-t border-gray-200/60">
+                        <button
+                          disabled
+                          className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-gray-400 bg-gray-200/50 cursor-not-allowed flex items-center justify-center gap-2 border border-gray-300/40"
+                          title="El cliente no proporcionó un número de teléfono válido para WhatsApp"
+                        >
+                          <span>💬</span> Contactar por WhatsApp (Sin teléfono válido)
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

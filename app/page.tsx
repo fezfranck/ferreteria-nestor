@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 import { useCart } from "./context/CartContext";
 import { supabase } from "./lib/supabase";
 import Link from "next/link";
+import ProductDetailModal from "./components/ProductDetailModal";
+
+import { useConfig } from "./context/ConfigContext";
 
 interface Producto {
   id: string;
@@ -14,14 +17,18 @@ interface Producto {
   imagen_url: string | null;
   badge: string | null;
   stock: number;
+  categoria_id?: number;
 }
 
 export default function Home() {
   const { addItem } = useCart();
+  const { config } = useConfig();
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriaActiva, setCategoriaActiva] = useState("all");
-  const [descuento, setDescuento] = useState(30);
+  const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
+
+  const descuento = config.descuento_porcentaje ?? 30;
 
   useEffect(() => {
     async function fetchProductos() {
@@ -35,18 +42,6 @@ export default function Home() {
     }
     fetchProductos();
   }, []);
-
-  useEffect(() => {
-  async function fetchDescuento() {
-    const { data } = await supabase
-      .from("configuracion")
-      .select("descuento_porcentaje")
-      .eq("id", 1)
-      .single();
-    if (data) setDescuento(data.descuento_porcentaje);
-  }
-  fetchDescuento();
-}, []);
 
   return (
     <main>
@@ -166,7 +161,8 @@ export default function Home() {
               {productos.slice(0, 8).map((p) => (
                 <div
                   key={p.id}
-                  className="bg-white rounded-xl overflow-hidden relative group"
+                  onClick={() => setProductoSeleccionado(p)}
+                  className="bg-white rounded-xl overflow-hidden relative group cursor-pointer"
                   style={{ border: "1.5px solid rgba(0,0,0,0.08)", transition: "all 0.2s" }}
                   onMouseEnter={e => {
                     (e.currentTarget as HTMLElement).style.borderColor = "#1B87C8";
@@ -206,8 +202,11 @@ export default function Home() {
                       ${p.precio.toLocaleString("es-AR")}
                     </div>
                     <button
-                      onClick={() => addItem({ id: p.sku, name: p.nombre, price: p.precio, brand: p.marca, icon: p.icono })}
-                      className="w-full text-white text-sm font-semibold py-2 rounded bg-primary hover:bg-primary-dark transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addItem({ id: p.sku, name: p.nombre, price: p.precio, brand: p.marca, icon: p.icono });
+                      }}
+                      className="w-full text-white text-sm font-semibold py-2 rounded bg-primary hover:bg-primary-dark transition-all cursor-pointer"
                     >
                       🛒 Agregar al carrito
                     </button>
@@ -218,6 +217,13 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Modal de detalle de producto */}
+      <ProductDetailModal
+        producto={productoSeleccionado}
+        isOpen={!!productoSeleccionado}
+        onClose={() => setProductoSeleccionado(null)}
+      />
 
       {/* PROMO BANNER */}
       <section className="px-6 pb-16">

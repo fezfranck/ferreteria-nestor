@@ -1,6 +1,14 @@
+"use client";
 import Link from "next/link";
+import { useConfig } from "../context/ConfigContext";
 
 export default function Footer() {
+  const { config } = useConfig();
+
+  const redesActivas = (config.redes_sociales || []).filter(
+    (r) => r.activo && r.url && r.url.startsWith("https://")
+  );
+
   return (
     <footer style={{ background: "#1A1A1A", color: "rgba(255,255,255,0.6)" }}>
 
@@ -19,16 +27,35 @@ export default function Footer() {
             57+ años siendo el proveedor de confianza para profesionales y empresas de toda la Argentina. Stock permanente, precios competitivos y atención especializada.
           </p>
           <div className="flex gap-3">
-            {["f", "in", "ig"].map((s) => (
-              <a
-                key={s}
-                href="#"
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all"
-                style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
-              >
-                {s}
-              </a>
-            ))}
+            {redesActivas.length > 0 ? (
+              redesActivas.map((r) => (
+                <a
+                  key={r.id || r.red}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all hover:bg-white/20 hover:text-white"
+                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}
+                  title={r.red}
+                  aria-label={r.red}
+                >
+                  {r.icono || r.red.slice(0, 2).toLowerCase()}
+                </a>
+              ))
+            ) : (
+              ["f", "in", "ig"].map((s) => (
+                <a
+                  key={s}
+                  href="https://instagram.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all hover:bg-white/20 hover:text-white"
+                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
+                >
+                  {s}
+                </a>
+              ))
+            )}
           </div>
         </div>
 
@@ -103,9 +130,10 @@ export default function Footer() {
             ))}
           </div>
           <div className="mt-6 flex flex-col gap-2 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-            <span>📍 Ignacio Crespo 1136, Recreo</span>
-            <span>📞 (0342) 5128458</span>
-            <span>🕐 Lun-Vie 8:00-18:00</span>
+            <span>📍 {config.direccion || "Ignacio Crespo 1136, Recreo"}</span>
+            <span>📞 {config.telefono || "(0342) 5128458"}</span>
+            <span>🕐 {config.horarios?.dias_semana || "Lun-Vie 8:00-18:00"}</span>
+            {config.horarios?.sabados && <span>🕐 {config.horarios.sabados}</span>}
           </div>
         </div>
       </div>

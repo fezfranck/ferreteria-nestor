@@ -1,5 +1,6 @@
 "use client";
 import { useAuth } from "../../context/AuthContext";
+import { useConfig } from "../../context/ConfigContext";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
@@ -53,6 +54,7 @@ function parseItems(itemsData: unknown): OrderItem[] {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { config } = useConfig();
 
   // Estados para vista Staff (admin, superadmin, vendedor)
   const [totalProductos, setTotalProductos] = useState(0);
@@ -465,63 +467,127 @@ export default function Dashboard() {
           style={{ border: "1.5px solid rgba(0,0,0,0.08)" }}
         >
           <div
-            className="px-6 py-4 font-bold text-sm"
+            className="px-6 py-4 font-bold text-sm flex items-center justify-between"
             style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}
           >
-            Accesos rápidos
+            <span>Accesos rápidos</span>
+            {user?.rol === "superadmin" && (
+              <Link
+                href="/admin/configuracion"
+                className="text-xs text-[#1B87C8] hover:underline font-semibold"
+              >
+                ⚙️ Configurar
+              </Link>
+            )}
           </div>
           <div className="p-6 grid grid-cols-2 gap-4">
-            {[
-              {
-                icon: "⏳",
-                label: pedidosPendientes > 0 ? `Revisar ventas (${pedidosPendientes})` : "Revisar ventas",
-                desc: "Solicitudes pendientes",
-                href: "/admin/pedidos?filtro=pendiente",
-                color: "#F5A623",
-                badge: pedidosPendientes > 0 ? `${pedidosPendientes} nuevas` : null,
-              },
-              {
-                icon: "🛒",
-                label: "Todos los pedidos",
-                desc: "Historial completo",
-                href: "/admin/pedidos?filtro=all",
-                color: "#38A169",
-              },
-              {
-                icon: "📦",
-                label: "Nuevo producto",
-                desc: "Catálogo",
-                href: "/admin/productos",
-                color: "#1B87C8",
-              },
-              {
-                icon: "🌐",
-                label: "Ver tienda",
-                desc: "Sitio web",
-                href: "/",
-                color: "#D69E2E",
-              },
-            ].map((a) => (
-              <Link
-                key={a.label}
-                href={a.href}
-                className="relative flex flex-col items-center justify-center gap-2 rounded-xl p-5 text-center transition-all hover:scale-[1.02] hover:shadow-xs"
-                style={{ background: `${a.color}10`, border: `1.5px solid ${a.color}25` }}
-              >
-                {a.badge && (
-                  <span className="absolute top-2 right-2 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
-                    {a.badge}
-                  </span>
-                )}
-                <span className="text-3xl">{a.icon}</span>
-                <div>
-                  <span className="text-xs font-bold uppercase block" style={{ color: a.color }}>
-                    {a.label}
-                  </span>
-                  {a.desc && <span className="text-[10px] text-gray-400 block">{a.desc}</span>}
-                </div>
-              </Link>
-            ))}
+            {(() => {
+              const accesosBase = config.accesos_rapidos && config.accesos_rapidos.length > 0
+                ? config.accesos_rapidos
+                : [
+                    {
+                      id: "def-1",
+                      etiqueta: "Revisar ventas",
+                      icono: "⏳",
+                      url: "/admin/pedidos?filtro=pendiente",
+                      color: "#F5A623",
+                      rolesPermitidos: ["superadmin", "admin", "vendedor"] as ("superadmin" | "admin" | "vendedor")[],
+                    },
+                    {
+                      id: "def-2",
+                      etiqueta: "Todos los pedidos",
+                      icono: "🛒",
+                      url: "/admin/pedidos?filtro=all",
+                      color: "#38A169",
+                      rolesPermitidos: ["superadmin", "admin", "vendedor"] as ("superadmin" | "admin" | "vendedor")[],
+                    },
+                    {
+                      id: "def-3",
+                      etiqueta: "Nuevo producto",
+                      icono: "📦",
+                      url: "/admin/productos",
+                      color: "#1B87C8",
+                      rolesPermitidos: ["superadmin", "admin", "vendedor"] as ("superadmin" | "admin" | "vendedor")[],
+                    },
+                    {
+                      id: "def-4",
+                      etiqueta: "Ver tienda",
+                      icono: "🌐",
+                      url: "/",
+                      color: "#D69E2E",
+                      rolesPermitidos: ["superadmin", "admin", "vendedor"] as ("superadmin" | "admin" | "vendedor")[],
+                    },
+                  ];
+
+              // Filtrar por rol
+              const permitidos = accesosBase.filter((a) => {
+                if (user?.rol === "superadmin") return true;
+                return a.rolesPermitidos && a.rolesPermitidos.includes(user?.rol as any);
+              });
+
+              if (permitidos.length === 0) {
+                return (
+                  <div className="col-span-2 text-center py-6 text-gray-400 text-xs">
+                    No tienes accesos directos asignados a tu rol.
+                  </div>
+                );
+              }
+
+              return permitidos.map((a) => {
+                const esExterno = a.url.startsWith("https://");
+                const tieneBadgeVentas =
+                  pedidosPendientes > 0 &&
+                  (a.url.includes("pendiente") || a.etiqueta.toLowerCase().includes("ventas"));
+
+                const contenido = (
+                  <>
+                    {tieneBadgeVentas && (
+                      <span className="absolute top-2 right-2 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500 text-white animate-pulse">
+                        {pedidosPendientes} nuevas
+                      </span>
+                    )}
+                    <span className="text-3xl">{a.icono || "📌"}</span>
+                    <div>
+                      <span className="text-xs font-bold uppercase block" style={{ color: a.color || "#1B87C8" }}>
+                        {tieneBadgeVentas ? `${a.etiqueta} (${pedidosPendientes})` : a.etiqueta}
+                      </span>
+                      {esExterno && (
+                        <span className="text-[10px] text-gray-400 block">Enlace externo ↗</span>
+                      )}
+                    </div>
+                  </>
+                );
+
+                const itemClass =
+                  "relative flex flex-col items-center justify-center gap-2 rounded-xl p-5 text-center transition-all hover:scale-[1.02] hover:shadow-xs";
+                const itemStyle = {
+                  background: `${a.color || "#1B87C8"}10`,
+                  border: `1.5px solid ${a.color || "#1B87C8"}25`,
+                };
+
+                return esExterno ? (
+                  <a
+                    key={a.id || a.etiqueta}
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={itemClass}
+                    style={itemStyle}
+                  >
+                    {contenido}
+                  </a>
+                ) : (
+                  <Link
+                    key={a.id || a.etiqueta}
+                    href={a.url}
+                    className={itemClass}
+                    style={itemStyle}
+                  >
+                    {contenido}
+                  </Link>
+                );
+              });
+            })()}
           </div>
         </div>
       </div>
