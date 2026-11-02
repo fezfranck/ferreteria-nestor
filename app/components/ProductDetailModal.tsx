@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useCart } from "../context/CartContext";
+import { obtenerCategorias, Categoria, CATEGORIAS_DEFAULT } from "../lib/categorias";
 
 export interface ModalProducto {
   id: string | number;
@@ -15,15 +16,6 @@ export interface ModalProducto {
   categoria_id?: number | null;
 }
 
-const NOMBRES_CATEGORIAS: Record<number, string> = {
-  1: "Electricidad",
-  2: "Herramientas",
-  3: "Iluminación",
-  4: "Cables",
-  5: "Tableros",
-  6: "Seguridad",
-};
-
 interface Props {
   producto: ModalProducto | null;
   isOpen: boolean;
@@ -34,6 +26,11 @@ export default function ProductDetailModal({ producto, isOpen, onClose }: Props)
   const { addItem } = useCart();
   const [cantidad, setCantidad] = useState(1);
   const [agregadoExitoso, setAgregadoExitoso] = useState(false);
+  const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_DEFAULT);
+
+  useEffect(() => {
+    obtenerCategorias().then(setCategorias);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -64,9 +61,8 @@ export default function ProductDetailModal({ producto, isOpen, onClose }: Props)
 
   const enStock = producto.stock > 0;
   const maxCantidad = enStock ? Math.max(1, producto.stock) : 1;
-  const categoriaNombre = producto.categoria_id
-    ? NOMBRES_CATEGORIAS[producto.categoria_id] || "Ferretería y Electricidad"
-    : "Ferretería y Electricidad";
+  const catEncontrada = categorias.find((c) => c.id === producto.categoria_id);
+  const categoriaNombre = catEncontrada ? catEncontrada.nombre : "Ferretería y Electricidad";
 
   function handleAgregar() {
     if (!enStock || !producto) return;

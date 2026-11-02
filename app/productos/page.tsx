@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useCart } from "../context/CartContext";
 import { supabase } from "../lib/supabase";
 import ProductDetailModal from "../components/ProductDetailModal";
+import { Categoria, CATEGORIAS_DEFAULT, obtenerCategorias } from "../lib/categorias";
 
 interface Producto {
   id: string;
@@ -17,16 +18,6 @@ interface Producto {
   categoria_id: number;
 }
 
-const CATEGORIAS = [
-  { id: 0, nombre: "Todos", emoji: "🔍" },
-  { id: 1, nombre: "Electricidad", emoji: "⚡" },
-  { id: 2, nombre: "Herramientas", emoji: "🔨" },
-  { id: 3, nombre: "Iluminación", emoji: "💡" },
-  { id: 4, nombre: "Cables", emoji: "🔌" },
-  { id: 5, nombre: "Tableros", emoji: "📋" },
-  { id: 6, nombre: "Seguridad", emoji: "🦺" },
-];
-
 const ORDENAMIENTO = [
   { value: "default", label: "Más vendidos" },
   { value: "precio_asc", label: "Precio: Menor a Mayor" },
@@ -37,11 +28,20 @@ const ORDENAMIENTO = [
 export default function Productos() {
   const { addItem } = useCart();
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_DEFAULT);
   const [loading, setLoading] = useState(true);
   const [categoriaActiva, setCategoriaActiva] = useState(0);
   const [busqueda, setBusqueda] = useState("");
   const [orden, setOrden] = useState("default");
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
+
+  useEffect(() => {
+    obtenerCategorias().then(setCategorias);
+  }, []);
+
+  const categoriasFiltro = useMemo(() => {
+    return [{ id: 0, nombre: "Todos", emoji: "🔍" }, ...categorias];
+  }, [categorias]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -140,7 +140,7 @@ export default function Productos() {
       {/* CATEGORÍAS */}
       <section className="bg-[#F0F7FD] border-b border-black/8 py-3 px-6 overflow-x-auto">
         <div className="max-w-6xl mx-auto flex gap-2 whitespace-nowrap">
-          {CATEGORIAS.map((cat) => (
+          {categoriasFiltro.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategoriaActiva(cat.id)}
@@ -150,7 +150,7 @@ export default function Productos() {
                   : "bg-white border-black/10 text-[#555] hover:bg-[#1B87C8] hover:text-white hover:border-[#1B87C8]"
               }`}
             >
-              {cat.emoji} {cat.nombre}
+              {cat.emoji || "📦"} {cat.nombre}
             </button>
           ))}
         </div>

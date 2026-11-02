@@ -1,30 +1,17 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import { useAuth } from "../../../context/AuthContext";
 import { supabase } from "../../../lib/supabase";
-
-const CATEGORIAS: Record<number, string> = {
-  1: "Electricidad",
-  2: "Herramientas",
-  3: "Iluminación",
-  4: "Cables",
-  5: "Tableros",
-  6: "Seguridad",
-};
-
-const CATEGORIAS_NORM: Record<string, number> = {
-  electricidad: 1,
-  herramientas: 2,
-  iluminacion: 3,
-  iluminación: 3,
-  cables: 4,
-  tableros: 5,
-  seguridad: 6,
-};
+import {
+  Categoria,
+  CATEGORIAS_DEFAULT,
+  obtenerCategorias,
+  obtenerDiccionariosCategorias,
+} from "../../../lib/categorias";
 
 interface FilaImportada {
   indice: number;
@@ -53,6 +40,21 @@ export default function CargaMasivaProductosPage() {
     }
   }, [user, router]);
 
+  // Categorías dinámicas desde Supabase
+  const [categoriasList, setCategoriasList] = useState<Categoria[]>(CATEGORIAS_DEFAULT);
+
+  useEffect(() => {
+    async function cargarCategorias() {
+      const cats = await obtenerCategorias();
+      setCategoriasList(cats);
+    }
+    cargarCategorias();
+  }, []);
+
+  const { mapaPorId: CATEGORIAS, mapaPorNombre: CATEGORIAS_NORM } = useMemo(() => {
+    return obtenerDiccionariosCategorias(categoriasList);
+  }, [categoriasList]);
+
   // Estados de pasos: 1 = Subir, 2 = Vista Previa, 3 = Progreso / Resumen
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
 
@@ -80,17 +82,17 @@ export default function CargaMasivaProductosPage() {
   const zipInputRef = useRef<HTMLInputElement>(null);
 
   // -------------------------------------------------------------
-  // DESCARGA DE PLANTILLA EXCEL
+  // GENERADOR DE PRODUCTOS EJEMPLO BASADO EN CATEGORÍAS VIGENTES
   // -------------------------------------------------------------
-  function descargarPlantilla() {
-    const encabezados = [
+  function generarProductosModelo() {
+    const prods = [
       {
         sku: "CBL-25-AZ",
         nombre: "Cable Unipolar 2.5mm Azul x100m",
         marca: "Prysmian",
         precio: 45900,
         stock: 25,
-        categoria_id: 4,
+        categoria_id: categoriasList[3]?.id || 4,
         badge: "Destacado",
         imagen_url: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500",
       },
@@ -100,7 +102,7 @@ export default function CargaMasivaProductosPage() {
         marca: "Bosch",
         precio: 115000,
         stock: 10,
-        categoria_id: 2,
+        categoria_id: categoriasList[1]?.id || 2,
         badge: "",
         imagen_url: "",
       },
@@ -110,30 +112,69 @@ export default function CargaMasivaProductosPage() {
         marca: "Philips",
         precio: 2400,
         stock: 150,
-        categoria_id: 3,
+        categoria_id: categoriasList[2]?.id || 3,
         badge: "Oferta",
         imagen_url: "",
       },
     ];
 
-    const hojaProductos = XLSX.utils.json_to_sheet(encabezados);
+    // Si existen más categorías creadas dinámicamente, agregar un ejemplo adicional
+    if (categoriasList.length > 3) {
+      const extraCat = categoriasList[categoriasList.length - 1];
+      prods.push({
+        sku: `PROD-CAT-${extraCat.id}`,
+        nombre: `Producto de Ejemplo ${extraCat.nombre}`,
+        marca: "Marca Genérica",
+        precio: 18500,
+        stock: 40,
+        categoria_id: extraCat.id,
+        badge: "Nuevo",
+        imagen_url: "",
+      });
+    }
 
-    // Hoja de ayuda de categorías
-    const categoriasAyuda = [
-      { ID_Categoria: 1, Nombre: "Electricidad" },
-      { ID_Categoria: 2, Nombre: "Herramientas" },
-      { ID_Categoria: 3, Nombre: "Iluminación" },
-      { ID_Categoria: 4, Nombre: "Cables" },
-      { ID_Categoria: 5, Nombre: "Tableros" },
-      { ID_Categoria: 6, Nombre: "Seguridad" },
-    ];
+    return prods;
+  }
+
+  // -------------------------------------------------------------
+  // DESCARGA DE MODELO CSV (.CSV)
+  // -------------------------------------------------------------
+  function descargarPlantillaCSV() {
+    const datosModelo = generarProductosModelo();
+    const hoja = XLSX.utils.json_to_sheet(datosModelo);
+    const csvString = XLSX.utils.sheet_to_csv(hoja);
+
+    // Anteponer BOM UTF-8 (\uFEFF) para que Excel lo abra con acentos correctos
+    const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.setAttribute("href", url);
+    enlace.setAttribute("download", "plantilla_productos_modelo.csv");
+    document.body.appendChild(enlace);
+    enlace.click();
+    document.body.removeChild(enlace);
+  }
+
+  // -------------------------------------------------------------
+  // DESCARGA DE MODELO EXCEL (.XLSX)
+  // -------------------------------------------------------------
+  function descargarPlantillaExcel() {
+    const datosModelo = generarProductosModelo();
+    const hojaProductos = XLSX.utils.json_to_sheet(datosModelo);
+
+    // Hoja dinámica con todas las categorías vigentes en el sistema
+    const categoriasAyuda = categoriasList.map((c) => ({
+      ID_Categoria: c.id,
+      Nombre: c.nombre,
+      Emoji: c.emoji || "📦",
+    }));
     const hojaCategorias = XLSX.utils.json_to_sheet(categoriasAyuda);
 
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, hojaProductos, "Productos");
     XLSX.utils.book_append_sheet(libro, hojaCategorias, "Categorías");
 
-    XLSX.writeFile(libro, "plantilla_productos_nestor.xlsx");
+    XLSX.writeFile(libro, "plantilla_productos_modelo.xlsx");
   }
 
   // -------------------------------------------------------------
@@ -245,7 +286,8 @@ export default function CargaMasivaProductosPage() {
         }
 
         if (!CATEGORIAS[categoria_id]) {
-          errores.push("Categoría inexistente (debe ser entre 1 y 6)");
+          const idsValidos = Object.keys(CATEGORIAS).join(", ");
+          errores.push(`Categoría inválida o no encontrada (ID o nombre "${catRaw || ""}"). IDs válidos: ${idsValidos}`);
         }
 
         // Badge
@@ -494,13 +536,24 @@ export default function CargaMasivaProductosPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={descargarPlantilla}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-white border border-[#1B87C8] text-[#1B87C8] hover:bg-[#F0F7FD] transition-all shadow-xs self-start sm:self-center"
-        >
-          <span>📥</span> Descargar plantilla Excel (.xlsx)
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+          <button
+            type="button"
+            onClick={descargarPlantillaCSV}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white border border-[#1B87C8] text-[#1B87C8] hover:bg-[#F0F7FD] transition-all shadow-xs"
+            title="Descargar archivo modelo en formato CSV con las categorías del sistema"
+          >
+            <span>📄</span> Descargar modelo CSV (.csv)
+          </button>
+          <button
+            type="button"
+            onClick={descargarPlantillaExcel}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-all shadow-xs"
+            title="Descargar libro Excel con hojas de Productos y Categorías"
+          >
+            <span>📊</span> Descargar modelo Excel (.xlsx)
+          </button>
+        </div>
       </div>
 
       {/* STEPPER INDICATOR */}
@@ -540,6 +593,38 @@ export default function CargaMasivaProductosPage() {
               <span>{errorSubida}</span>
             </div>
           )}
+
+          {/* TARJETA DE CATEGORÍAS VIGENTES EN EL SISTEMA */}
+          <div className="bg-white rounded-2xl p-5 border border-black/8 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🏷️</span>
+                <h3 className="text-sm font-bold text-gray-900">
+                  Categorías vigentes disponibles para importar ({categoriasList.length})
+                </h3>
+              </div>
+              <Link
+                href="/admin/productos"
+                className="text-xs font-bold text-[#1B87C8] hover:underline"
+              >
+                + Crear o administrar categorías →
+              </Link>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Al cargar tu CSV o planilla podés asignar la columna <strong>categoria_id</strong> con el ID numérico o con el nombre exacto de la categoría:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {categoriasList.map((cat) => (
+                <span
+                  key={cat.id}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-[#F0F7FD] text-gray-800 border border-[#D6EAF8]"
+                >
+                  <span className="font-bold font-mono text-[#1B87C8]">ID {cat.id}:</span>
+                  <span>{cat.emoji || "📦"} {cat.nombre}</span>
+                </span>
+              ))}
+            </div>
+          </div>
 
           {/* TARJETA 1: ARCHIVO EXCEL/CSV */}
           <div className="bg-white rounded-2xl p-6 sm:p-8 border border-black/8 shadow-xs">
